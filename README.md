@@ -89,6 +89,12 @@ npm run e2e
 
 `Dockerfile` في جذر المشروع يبني صورة السيرفر وحده (القواعد والسيرفر فقط)، وتستعمله Railway وغيرها تلقائيًا. المنفذ يُقرأ من `PORT`.
 
+**المنشور حاليًا:** على Railway (منطقة EU West)، ويُنشر تلقائيًا مع كل رفع إلى `main`. العنوان `wss://samrah-production.up.railway.app`، والمتغير `PORT=2567` مضبوط هناك (الرابط العام موجَّه إلى هذا المنفذ). نسخة التطبيق للهواتف:
+
+```bash
+flutter build apk --release --dart-define=GAME_SERVER=wss://samrah-production.up.railway.app
+```
+
 سيرفر اللعب عملية Node دائمة تحتفظ باتصالات WebSocket (`npm start -w @lamma/server`)، فلا تصلح له استضافات الدوال (serverless). الغرف محفوظة في الذاكرة، فالمطلوب نسخة واحدة، وأي إعادة تشغيل تقطع المباريات الجارية. التطبيق المنشور يحتاج عنوانًا آمنًا: `GAME_SERVER=wss://<النطاق>`.
 
 ## الرمز السري وإعادة الاتصال
