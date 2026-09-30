@@ -15,6 +15,7 @@ import '../widgets/playing_card_view.dart';
 import '../widgets/suit_icon.dart';
 import '../widgets/table_stage.dart';
 import '../widgets/motion.dart';
+import '../widgets/game_over.dart';
 import '../widgets/trick_card.dart';
 import '../widgets/trump_panel.dart';
 import '../widgets/turn_clock.dart';
@@ -215,10 +216,14 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
               ),
             ),
 
-          if (v.status == 'finished') ...[
-            const Positioned.fill(child: ColoredBox(color: Color(0x99000000))),
-            _centerPanel(child: _gameOver(g, name)),
-          ],
+          if (v.status == 'finished')
+            GameOverOverlay(
+              variant: v.variant,
+              won: g.winnerSeats.contains(g.mySeat),
+              sides: GameOverSide.players(g.players, name, g.scores, g.winnerSeats),
+              onRematch: () => widget.conn.send('rematch'),
+              onHome: () => Navigator.of(context).maybePop(),
+            ),
         ],
       ),
     );
@@ -561,31 +566,6 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
           ),
         const SizedBox(height: 6),
         const Text('الجولة التالية بعد لحظات…', style: TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
-      ],
-    );
-  }
-
-  Widget _gameOver(B187View g, String Function(int) name) {
-    final won = g.winnerSeats.contains(g.mySeat);
-    final ranking = List.generate(g.players, (i) => i)..sort((a, b) => g.scores[b] - g.scores[a]);
-    const body = TextStyle(color: SamrahColors.text, fontSize: 13);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(won ? 'فزت!' : 'انتهت المباراة', textAlign: TextAlign.center, style: GoogleFonts.cairo(color: SamrahColors.text, fontSize: 22, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 6),
-        for (var i = 0; i < ranking.length; i++)
-          Row(
-            children: [
-              Expanded(child: Text('${i + 1}. ${name(ranking[i])}', style: body)),
-              Text('${g.scores[ranking[i]]}', textDirection: TextDirection.ltr, style: body.copyWith(fontWeight: FontWeight.w700)),
-            ],
-          ),
-        const SizedBox(height: 14),
-        ElevatedButton(onPressed: () => widget.conn.send('rematch'), child: const Text('مباراة جديدة بنفس الطاولة', style: TextStyle(fontSize: 14))),
-        const SizedBox(height: 8),
-        OutlinedButton(onPressed: () => Navigator.of(context).maybePop(), child: const Text('للصفحة الرئيسية')),
       ],
     );
   }

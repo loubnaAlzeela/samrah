@@ -17,6 +17,7 @@ import '../widgets/playing_card_view.dart';
 import '../widgets/suit_icon.dart';
 import '../widgets/table_stage.dart';
 import '../widgets/motion.dart';
+import '../widgets/game_over.dart';
 import '../widgets/trick_card.dart';
 import '../widgets/turn_clock.dart';
 
@@ -234,10 +235,15 @@ class _BalootGameScreenState extends State<BalootGameScreen> with TurnClock {
               ),
             ),
 
-          if (v.status == 'finished') ...[
-            const Positioned.fill(child: ColoredBox(color: Color(0x99000000))),
-            _centerPanel(child: _gameOver(g)),
-          ],
+          if (v.status == 'finished')
+            GameOverOverlay(
+              variant: v.variant,
+              won: g.winner == g.mySeat % 2,
+              sides: GameOverSide.teams(name, g.teamScores, g.winner),
+              note: g.qahwa ? 'انتهت بقهوة' : null,
+              onRematch: () => widget.conn.send('rematch'),
+              onHome: () => Navigator.of(context).maybePop(),
+            ),
         ],
       ),
     );
@@ -541,25 +547,6 @@ class _BalootGameScreenState extends State<BalootGameScreen> with TurnClock {
         row('النقاط', r.teamDelta[us], r.teamDelta[them]),
         const SizedBox(height: 6),
         const Text('الجولة التالية بعد لحظات…', style: muted),
-      ],
-    );
-  }
-
-  Widget _gameOver(BalootView g) {
-    final us = g.mySeat % 2;
-    final won = g.winner == us;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(won ? 'فزنا!' : 'انتهت اللعبة', textAlign: TextAlign.center, style: GoogleFonts.cairo(color: SamrahColors.text, fontSize: 22, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 6),
-        if (g.qahwa) const Text('انتهت بقهوة', textAlign: TextAlign.center, style: TextStyle(color: SamrahColors.textMuted)),
-        Text('لنا ${g.teamScores[us]} · لهم ${g.teamScores[1 - us]}', textAlign: TextAlign.center, style: const TextStyle(color: SamrahColors.textMuted)),
-        const SizedBox(height: 14),
-        ElevatedButton(onPressed: () => widget.conn.send('rematch'), child: const Text('مباراة جديدة بنفس الطاولة', style: TextStyle(fontSize: 14))),
-        const SizedBox(height: 8),
-        OutlinedButton(onPressed: () => Navigator.of(context).maybePop(), child: const Text('للصفحة الرئيسية')),
       ],
     );
   }

@@ -16,6 +16,7 @@ import '../widgets/playing_card_view.dart';
 import '../widgets/suit_icon.dart';
 import '../widgets/table_stage.dart';
 import '../widgets/motion.dart';
+import '../widgets/game_over.dart';
 import '../widgets/trick_card.dart';
 import '../widgets/trump_panel.dart';
 import '../widgets/turn_clock.dart';
@@ -254,10 +255,14 @@ class _GameScreenState extends State<GameScreen> with TurnClock {
               ),
             ),
 
-          if (v.status == 'finished') ...[
-            const Positioned.fill(child: ColoredBox(color: Color(0x99000000))),
-            _centerPanel(child: _GameOver(g: g, us: us, onRematch: () => conn.send('rematch'), onHome: () => Navigator.of(context).maybePop())),
-          ],
+          if (v.status == 'finished')
+            GameOverOverlay(
+              variant: v.variant,
+              won: g.winner == us,
+              sides: GameOverSide.teams(name, g.teamScores, g.winner),
+              onRematch: () => conn.send('rematch'),
+              onHome: () => Navigator.of(context).maybePop(),
+            ),
         ],
       ),
     );
@@ -495,32 +500,6 @@ class _HandResult extends StatelessWidget {
         if (r.kind == 'scored') Text('لنا ${_signed(r.teamDelta[us])} · لهم ${_signed(r.teamDelta[1 - us])}', style: body.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         const Text('الجولة التالية بعد لحظات…', style: TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
-      ],
-    );
-  }
-}
-
-class _GameOver extends StatelessWidget {
-  const _GameOver({required this.g, required this.us, required this.onRematch, required this.onHome});
-  final PlayerView g;
-  final int us;
-  final VoidCallback onRematch;
-  final VoidCallback onHome;
-
-  @override
-  Widget build(BuildContext context) {
-    final won = g.winner == us;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(won ? 'فزنا!' : 'فاز الخصم هذه المرة', textAlign: TextAlign.center, style: GoogleFonts.cairo(color: SamrahColors.text, fontSize: 22, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4),
-        Text('لنا ${g.teamScores[us]} · لهم ${g.teamScores[1 - us]}', textAlign: TextAlign.center, style: const TextStyle(color: SamrahColors.textMuted)),
-        const SizedBox(height: 14),
-        ElevatedButton(onPressed: onRematch, child: const Text('مباراة جديدة بنفس الطاولة', style: TextStyle(fontSize: 14))),
-        const SizedBox(height: 8),
-        OutlinedButton(onPressed: onHome, child: const Text('للصفحة الرئيسية')),
       ],
     );
   }

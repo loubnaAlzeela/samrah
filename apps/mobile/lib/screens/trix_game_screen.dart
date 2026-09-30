@@ -15,6 +15,7 @@ import '../widgets/hand_view.dart';
 import '../widgets/playing_card_view.dart';
 import '../widgets/table_stage.dart';
 import '../widgets/motion.dart';
+import '../widgets/game_over.dart';
 import '../widgets/trick_card.dart';
 import '../widgets/turn_clock.dart';
 
@@ -130,8 +131,26 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
         clipBehavior: Clip.none,
         children: [
           Positioned(left: 8, top: 12, child: ScoreDiamond(top: cell(2), left: cell(3), right: cell(1), bottom: cell(0), center: '${g.kingdom + 1}', usVertical: g.partners)),
-          if (g.contract != null) Positioned(left: 14, top: 98, child: _contractChip(g)),
-          if (g.doubled.isNotEmpty) Positioned(left: 14, top: 128, child: _doubledRow(g)),
+          // the contract (and what is doubled) sits in the gap at the top, between the score and the last trick
+          if (g.contract != null)
+            Positioned(
+              left: 132,
+              width: 140,
+              top: 14,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _contractChip(g),
+                      if (g.doubled.isNotEmpty) ...[const SizedBox(width: 6), _doubledRow(g)],
+                    ],
+                  ),
+                ),
+              ),
+            ),
           if (!isTrix) Positioned(right: 10, top: 14, child: LastTrickDiamond(cardAt: lastAt)),
 
           const Positioned(left: _tableL, top: _tableT, width: _tableW, height: _tableH, child: TableFelt()),
@@ -214,10 +233,16 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
               ),
             ),
 
-          if (v.status == 'finished') ...[
-            const Positioned.fill(child: ColoredBox(color: Color(0x99000000))),
-            _centerPanel(child: _gameOver(g, name)),
-          ],
+          if (v.status == 'finished')
+            GameOverOverlay(
+              variant: v.variant,
+              won: g.winnerSeats.contains(g.mySeat),
+              sides: g.partners
+                  ? GameOverSide.teams(name, g.teamScores, g.winnerSeats.isEmpty ? null : g.winnerSeats.first % 2)
+                  : GameOverSide.players(4, name, g.seatScores, g.winnerSeats),
+              onRematch: () => widget.conn.send('rematch'),
+              onHome: () => Navigator.of(context).maybePop(),
+            ),
         ],
       ),
     );
@@ -503,34 +528,6 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
         ],
         const SizedBox(height: 6),
         const Text('الجولة التالية بعد لحظات…', style: TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
-      ],
-    );
-  }
-
-  Widget _gameOver(TrixView g, String Function(int) name) {
-    final won = g.winnerSeats.contains(g.mySeat);
-    final ranking = [0, 1, 2, 3]..sort((a, b) => g.seatScores[b] - g.seatScores[a]);
-    const body = TextStyle(color: SamrahColors.text, fontSize: 13);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(won ? (g.partners ? 'فزنا!' : 'فزت!') : 'انتهت اللعبة', textAlign: TextAlign.center, style: GoogleFonts.cairo(color: SamrahColors.text, fontSize: 22, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 6),
-        if (g.partners)
-          Text('لنا ${g.teamScores[g.mySeat % 2]} · لهم ${g.teamScores[1 - g.mySeat % 2]}', textAlign: TextAlign.center, style: const TextStyle(color: SamrahColors.textMuted))
-        else
-          for (var i = 0; i < 4; i++)
-            Row(
-              children: [
-                Expanded(child: Text('${i + 1}. ${name(ranking[i])}', style: body)),
-                Text('${g.seatScores[ranking[i]]}', style: body.copyWith(fontWeight: FontWeight.w700)),
-              ],
-            ),
-        const SizedBox(height: 14),
-        ElevatedButton(onPressed: () => widget.conn.send('rematch'), child: const Text('مباراة جديدة بنفس الطاولة', style: TextStyle(fontSize: 14))),
-        const SizedBox(height: 8),
-        OutlinedButton(onPressed: () => Navigator.of(context).maybePop(), child: const Text('للصفحة الرئيسية')),
       ],
     );
   }
