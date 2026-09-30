@@ -13,6 +13,8 @@ class PlaceholderScreen extends StatelessWidget {
         'المتجر' => Icons.storefront_outlined,
         'الأندية' => Icons.shield_outlined,
         'التحديات' => Icons.flag_outlined,
+        'الرسائل' => Icons.chat_bubble_outline,
+        'التنبيهات' => Icons.notifications_none,
         _ => Icons.hourglass_empty,
       };
 

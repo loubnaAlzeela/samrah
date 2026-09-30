@@ -1,5 +1,5 @@
-// Home screen — matches design/layout-v3.md §1/§2/§8: header (profile +
-// wallets), banner carousel, game picker, the three mode cards, and the
+// Home screen — matches design/layout-v3.md §1/§2/§8: header (stars ·
+// profile · coins), game picker, the three mode cards, and the
 // bottom nav. Icons use Material's outline set as a pragmatic stand-in for
 // the spec's custom line icons (no Jawaker art either way).
 //
@@ -14,11 +14,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/samrah_theme.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/mode_wheel.dart';
 import 'games_screen.dart';
 import 'new_game_sheet.dart';
 import 'placeholder_screen.dart';
 import 'room_screen.dart';
 import 'rules_screen.dart';
+import 'settings_screen.dart';
 import '../widgets/motion.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,9 +32,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _bannerCtrl = PageController();
-  Timer? _bannerTimer;
-  int _bannerPage = 0;
+  Timer? _warmTimer;
   final int _navIndex = 2; // الرئيسية
 
   /// Games the picker cycles through: (wire variant, name, description).
@@ -50,25 +50,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _stepGame(int d) => setState(() => _gameIndex = (_gameIndex + d) % _games.length);
 
-  static const _banners = [('متاحة الآن! العبها مع أصدقائك الليلة', 'طرنيب سوري 41'), ('العب مع أصدقائك عبر الإنترنت', 'سمرة')];
-
   @override
   void initState() {
     super.initState();
     // connect to the game server now, while the player picks a game, so a table opens at once
     unawaited(gameServer.warmUp());
-    _bannerTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      unawaited(gameServer.warmUp()); // keeps the connection warm while the player browses (throttled)
-      if (!mounted || !_bannerCtrl.hasClients) return;
-      final next = (_bannerPage + 1) % _banners.length;
-      _bannerCtrl.animateToPage(next, duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
-    });
+    // keeps the connection warm while the player browses (throttled inside warmUp)
+    _warmTimer = Timer.periodic(const Duration(seconds: 10), (_) => unawaited(gameServer.warmUp()));
   }
 
   @override
   void dispose() {
-    _bannerTimer?.cancel();
-    _bannerCtrl.dispose();
+    _warmTimer?.cancel();
     super.dispose();
   }
 
@@ -97,14 +90,12 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               EnterFrom(child: _header(letter)),
-              const SizedBox(height: 18),
-              EnterFrom(delay: Motion.stagger(1, stepMs: 80), child: _bannerCarousel()),
-              const SizedBox(height: 14),
-              EnterFrom(delay: Motion.stagger(2, stepMs: 80), child: _gamePicker()),
+              const SizedBox(height: 24),
+              EnterFrom(delay: Motion.stagger(1, stepMs: 80), child: _gamePicker()),
               const SizedBox(height: 20),
-              EnterFrom(delay: Motion.stagger(3, stepMs: 80), child: _modeCards()),
+              EnterFrom(delay: Motion.stagger(2, stepMs: 80), child: _modeCards()),
               const SizedBox(height: 20),
-              EnterFrom(delay: Motion.stagger(4, stepMs: 80), child: _rulesRankInvite()),
+              EnterFrom(delay: Motion.stagger(3, stepMs: 80), child: _rulesRankInvite()),
             ],
           ),
         ),
@@ -125,81 +116,101 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _header(String letter) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // wallets (LTR per spec) on the visual left
-          Row(
+          // right edge: the wallets, one above the other (same width)
+          IntrinsicWidth(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _wallet(icon: Icons.star, label: 'نجوم', value: 0),
+                const SizedBox(height: 8),
+                _wallet(icon: Icons.circle, label: 'وحدات', value: 0),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          // the player, centred and given the room
+          Expanded(child: _profileCapsule(letter)),
+          const SizedBox(width: 10),
+          // left edge: messages and notifications
+          Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _wallet(icon: Icons.circle, label: 'وحدات', value: 0),
-              const SizedBox(width: 6),
-              _wallet(icon: Icons.star, label: 'نجوم', value: 0),
+              _headerIcon(Icons.chat_bubble_outline, 'الرسائل', () => _push(const PlaceholderScreen(title: 'الرسائل'))),
+              _headerIcon(Icons.notifications_none, 'التنبيهات', () => _push(const PlaceholderScreen(title: 'التنبيهات'))),
             ],
           ),
-          const Spacer(),
-          // profile capsule
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: SamrahColors.surface,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: SamrahColors.line),
-            ),
-            child: Row(
+        ],
+      ),
+    );
+  }
+
+  void _push(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
+  Widget _headerIcon(IconData icon, String tooltip, VoidCallback onTap) => SizedBox(
+        width: 38,
+        height: 36,
+        child: IconButton(padding: EdgeInsets.zero, tooltip: tooltip, onPressed: onTap, icon: Icon(icon, color: SamrahColors.text, size: 24)),
+      );
+
+  Widget _profileCapsule(String letter) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(6, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: SamrahColors.surface,
+        borderRadius: BorderRadius.circular(34),
+        border: Border.all(color: SamrahColors.line),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: SamrahColors.surface3,
+            child: Text(letter, style: GoogleFonts.cairo(color: SamrahColors.text, fontSize: 22, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      widget.playerName,
-                      style: const TextStyle(color: SamrahColors.text, fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('0%', style: TextStyle(color: SamrahColors.textMuted, fontSize: 10)),
-                        const SizedBox(width: 4),
-                        SizedBox(
-                          width: 34,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: const LinearProgressIndicator(value: 0, minHeight: 4, backgroundColor: SamrahColors.surface3, color: SamrahColors.textMuted),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                Text(
+                  widget.playerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.cairo(color: SamrahColors.text, fontWeight: FontWeight.w700, fontSize: 16, height: 1.3),
                 ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: SamrahColors.surface3,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Text(
-                        letter,
-                        style: const TextStyle(color: SamrahColors.text, fontWeight: FontWeight.w700),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    // level badge, then progress to the next level
+                    Container(
+                      width: 22,
+                      height: 22,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(color: SamrahColors.accent, shape: BoxShape.circle),
+                      child: const Text('1', style: TextStyle(color: SamrahColors.onAccent, fontSize: 12, fontWeight: FontWeight.w800)),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: const LinearProgressIndicator(value: 0, minHeight: 6, backgroundColor: SamrahColors.scorebox, color: SamrahColors.accent),
                       ),
-                      Positioned(
-                        bottom: -4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: const BoxDecoration(color: SamrahColors.selectedBg, shape: BoxShape.circle),
-                          child: const Text(
-                            '1',
-                            style: TextStyle(color: SamrahColors.onSelected, fontSize: 9, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text('0%', style: TextStyle(color: SamrahColors.textMuted, fontSize: 11)),
+                  ],
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 4),
+          // settings live with the player
+          _headerIcon(Icons.settings_outlined, 'الإعدادات', () => _push(SettingsScreen(playerName: widget.playerName))),
         ],
       ),
     );
@@ -230,53 +241,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Icon(Icons.add, size: 12, color: SamrahColors.text),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _bannerCarousel() {
-    return SizedBox(
-      height: 118,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: PageView.builder(
-          controller: _bannerCtrl,
-          itemCount: _banners.length,
-          onPageChanged: (i) => setState(() => _bannerPage = i),
-          itemBuilder: (context, i) {
-            final (subtitle, title) = _banners[i];
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [SamrahColors.tableCenter, SamrahColors.tableEdge], begin: Alignment.topRight, end: Alignment.bottomLeft),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // the app's own name shows as its gold wordmark, never as plain text
-                    title == 'سمرة'
-                        ? Image.asset('assets/brand/samrah-wordmark-ar.png', height: 30, semanticLabel: 'سمرة')
-                        : Text(
-                            title,
-                            style: GoogleFonts.cairo(fontSize: 20, fontWeight: FontWeight.w700, color: SamrahColors.onTable),
-                          ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(fontSize: 13, color: SamrahColors.onTableMuted),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
       ),
     );
   }
@@ -358,19 +322,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _modeCards() {
-    return SizedBox(
-      height: 190,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _sideCard(icon: Icons.list_alt, label: 'إنشاء لعبة', onTap: () => _openNewGameSheet()),
-          const SizedBox(width: 10),
-          _centerCard(),
-          const SizedBox(width: 10),
-          _sideCard(icon: Icons.public, label: 'الألعاب العامة', onTap: () => _soon('الألعاب العامة')),
-        ],
-      ),
+    return ModeWheel(
+      initial: 1, // «لعبة ودية» in front
+      items: [
+        ModeItem(icon: Icons.add_rounded, title: 'إنشاء لعبة', action: 'إنشاء', onTap: _openNewGameSheet),
+        ModeItem(icon: Icons.play_arrow_rounded, title: 'لعبة ودية', action: 'العب الآن', onTap: () => _openRoomFlow(auto: true)),
+        ModeItem(icon: Icons.public, title: 'الألعاب العامة', action: 'عرض الألعاب', onTap: () => _soon('الألعاب العامة')),
+      ],
     );
   }
 
@@ -383,92 +341,6 @@ class _HomeScreenState extends State<HomeScreen> {
     ).then((settings) {
       if (settings != null) _openRoomFlow(auto: true, settings: settings);
     });
-  }
-
-  Widget _centerCard() {
-    return Container(
-      width: 136,
-      height: 190,
-      decoration: BoxDecoration(
-        color: SamrahColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: SamrahColors.fieldBorder),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Pressable(
-            child: Breathe(
-              amount: 0.05,
-              period: const Duration(milliseconds: 1400),
-              child: InkWell(
-                onTap: () => _openRoomFlow(auto: true),
-                customBorder: const CircleBorder(),
-                child: Container(
-                  width: 76,
-                  height: 76,
-                  decoration: const BoxDecoration(color: SamrahColors.accent, shape: BoxShape.circle),
-                  child: const Icon(Icons.play_arrow, color: SamrahColors.onAccent, size: 38),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'لعبة ودية',
-            style: TextStyle(color: SamrahColors.text, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 2),
-          const Text(
-            'العب الآن',
-            style: TextStyle(color: SamrahColors.onTableAccent, fontSize: 13, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sideCard({required IconData icon, required String label, required VoidCallback onTap}) {
-    return Pressable(
-      child: _sideCardBody(icon: icon, label: label, onTap: onTap),
-    );
-  }
-
-  Widget _sideCardBody({required IconData icon, required String label, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        width: 100,
-        height: 150,
-        margin: const EdgeInsets.only(top: 22),
-        decoration: BoxDecoration(
-          color: SamrahColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: SamrahColors.line),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: SamrahColors.fieldBorder),
-              ),
-              child: Icon(icon, color: SamrahColors.text),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: SamrahColors.text, fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _rulesRankInvite() {
