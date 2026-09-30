@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+
+.vercel
+
+# Python caches (apps/mobile/tool/make_sounds.py)
+__pycache__/
+# per-machine Claude Code settings
+.claude/settings.local.json
+
+# local server logs
+.server_log.txt

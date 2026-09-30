@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لَمّة — اتجاهات بصرية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=Lalezar&family=Readex+Pro:wght@400;500;600;700&family=Reem+Kufi:wght@500;700&family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+:root{--page:#E6E3DD;--page-ink:#1C1C1E;--page-muted:#5B5853}
+body{margin:0;background:var(--page);color:var(--page-ink);font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+button,input{font:inherit}
+.page-head{max-width:1340px;margin:0 auto;padding:32px 16px 8px}
+.page-head h1{margin:0;font-size:26px;line-height:1.3}
+.page-head p{margin:6px 0 0;color:var(--page-muted);max-width:760px}
+.dirs{display:grid;gap:28px;max-width:1340px;margin:0 auto;padding:16px 16px 48px}
+@media(min-width:1320px){.dirs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.dir{border-radius:22px;padding:20px 12px;min-width:0}
+.info{padding:0 6px 8px;color:var(--text)}
+.dir-label{font:600 12px/1 'IBM Plex Sans Arabic',sans-serif;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+.dir h2{margin:6px 0 4px;font-family:var(--fd);font-size:30px;line-height:1.25;font-weight:700}
+.dir .idea{margin:0 0 14px;color:var(--muted);font-size:15px}
+.sw{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.sw div{border-radius:10px;height:52px;border:1px solid rgba(127,127,127,.35);display:flex;align-items:flex-end;padding:4px 6px}
+.sw span{font:500 11px/1.2 'IBM Plex Sans Arabic',monospace;direction:ltr;background:rgba(255,255,255,.88);color:#111;padding:2px 4px;border-radius:4px}
+.fonts{font-size:14px;margin:0 0 12px;color:var(--text)}
+.fonts b{font-weight:600}
+.fonts .samp-d{font-family:var(--fd);font-size:22px;line-height:1.4;display:block}
+.fonts .samp-b{font-family:var(--fb);display:block;color:var(--muted)}
+.logo-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:6px 0 12px}
+.logo-note{font-size:13px;color:var(--muted);flex:1;min-width:160px}
+.sig{background:var(--surface2);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:16px;color:var(--text)}
+.sig b{color:var(--accent-text,var(--accent))}
+.deck{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:14px 8px;border-radius:14px;background:var(--table);margin-bottom:18px}
+.deck .card{--cw:78px}
+.phones{display:flex;flex-direction:column;gap:22px;align-items:center}
+@media(min-width:900px) and (max-width:1319px){.phones{flex-direction:row;justify-content:center;align-items:flex-start}}
+.cap{font:600 13px 'IBM Plex Sans Arabic',sans-serif;color:var(--muted);text-align:center;margin:0 0 8px}
+
+/* ---------- phone ---------- */
+.phone{width:406px;max-width:100%;border-radius:46px;padding:8px;background:#0E0E10;box-shadow:0 20px 50px -20px rgba(0,0,0,.45)}
+.screen{position:relative;height:812px;border-radius:38px;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--fb);display:flex;flex-direction:column}
+@media(max-width:439px){.dir{padding:20px 0}.info{padding:0 16px 8px}.phone{padding:0;border-radius:0;background:none;box-shadow:none}.screen{border-radius:0}}
+.sb{height:46px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:6px 28px 0;font:600 14px/1 -apple-system,'Rubik',sans-serif;direction:ltr;color:var(--text)}
+.sb .isl{width:110px;height:30px;border-radius:20px;background:#000}
+.sb .bat{width:26px;height:12px;border:1.5px solid currentColor;border-radius:4px;position:relative}
+.sb .bat::after{content:"";position:absolute;inset:2px 6px 2px 2px;background:currentColor;border-radius:1px}
+.home{height:24px;flex:none;display:flex;justify-content:center;align-items:center}
+.home::after{content:"";width:134px;height:5px;border-radius:3px;background:var(--text);opacity:.8}
+
+/* ---------- cards ---------- */
+.card{--cw:52px;position:relative;width:var(--cw);height:calc(var(--cw)*1.42);border-radius:calc(var(--cw)*.12);background:var(--card);border:1px solid var(--card-line);flex:none;overflow:hidden;font-family:var(--fr);user-select:none}
+.card.red{color:var(--red)}.card.blk{color:var(--blk)}
+.card .ix{position:absolute;top:calc(var(--cw)*.06);left:calc(var(--cw)*.07);display:flex;flex-direction:column;align-items:center;width:calc(var(--cw)*.36)}
+.card .ix b{font-size:calc(var(--cw)*.36);line-height:1;font-weight:800;letter-spacing:-.06em}
+.card .ix svg{width:calc(var(--cw)*.28);height:calc(var(--cw)*.28);margin-top:calc(var(--cw)*.04)}
+.card .ix.br{top:auto;left:auto;bottom:calc(var(--cw)*.06);right:calc(var(--cw)*.07);transform:rotate(180deg)}
+.card .ctr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.card .ctr .big{width:calc(var(--cw)*.5);height:calc(var(--cw)*.5);margin-top:calc(var(--cw)*.28);margin-left:calc(var(--cw)*.28)}
+.card .ctr .fs{position:absolute;width:calc(var(--cw)*.26);height:calc(var(--cw)*.26);bottom:calc(var(--cw)*.14);left:calc(var(--cw)*.58)}
+.card .fl{font-family:var(--fd);font-size:calc(var(--cw)*.62);line-height:1;margin-top:calc(var(--cw)*.2);margin-left:calc(var(--cw)*.26)}
+.deck .card .ctr .big{margin:0;width:calc(var(--cw)*.46);height:calc(var(--cw)*.46)}
+.deck .card .fl{margin:0}
+.deck .card .ctr .fs{display:none}
+.card .br{display:none}.deck .card .br{display:flex}
+.card.back .ix,.card.back .ctr{display:none}
+svg.su{fill:currentColor}
+
+/* ---------- lobby (shared skeleton) ---------- */
+.lobby{flex:1;display:flex;flex-direction:column;padding:4px 20px 0;min-height:0}
+.lb-head{display:flex;align-items:center;justify-content:space-between;height:56px}
+.icbtn{width:44px;height:44px;border-radius:14px;border:0;display:grid;place-items:center;background:var(--surface);color:var(--text);cursor:pointer;flex:none}
+.icbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hello{margin:14px 0 0;color:var(--muted);font-size:15px}
+.lb-title{margin:2px 0 14px;font-family:var(--fd);font-size:28px;line-height:1.3;font-weight:700}
+.games{display:grid;gap:10px}
+.game{display:flex;align-items:center;gap:12px;min-height:76px;padding:12px 14px;border-radius:18px;background:var(--surface);position:relative;cursor:pointer}
+.gicon{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;flex:none}
+.gicon svg{width:30px;height:30px}
+.gtxt{flex:1;min-width:0}
+.gtxt h3{margin:0;font-family:var(--fd);font-size:20px;line-height:1.3;font-weight:700}
+.gtxt p{margin:0;font-size:13px;color:var(--muted)}
+.tag{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.game.soon{cursor:default}
+.room{margin-top:auto;padding:16px 0 10px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.btn{height:54px;border-radius:16px;border:0;font-weight:700;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.join{display:flex;gap:8px}
+.join input{flex:1;min-width:0;width:100%;height:52px;border-radius:14px;padding:0 14px;font-size:17px;letter-spacing:.2em;text-align:center;text-transform:uppercase;direction:ltr}
+.join .btn{height:52px;padding:0 20px;font-size:16px}
+.bnav{display:flex;justify-content:space-around;padding:6px 8px 0;border-top:1px solid var(--line);margin:0 -20px}
+.bnav a{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px;min-height:48px;padding-top:6px;font-size:12px;color:var(--muted);text-decoration:none}
+.bnav a svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bnav a.on{color:var(--accent-text,var(--accent));font-weight:600}
+.live{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-top:10px}
+.live i{width:8px;height:8px;border-radius:50%;background:#2FB36B;display:inline-block}
+
+/* ---------- table (shared skeleton) ---------- */
+.tb-top{display:flex;align-items:center;gap:8px;padding:4px 14px;height:60px;flex:none}
+.score{flex:1;display:flex;align-items:center;justify-content:center;gap:10px}
+.team{display:flex;flex-direction:column;align-items:center;min-width:56px;line-height:1.1}
+.team span{font-size:12px;color:var(--muted)}
+.team b{font-size:24px;font-variant-numeric:tabular-nums;font-family:var(--fr)}
+.target{font-size:12px;color:var(--muted);padding:4px 8px;border-radius:8px;border:1px solid var(--line)}
+.trump{display:flex;flex-direction:column;align-items:center;min-width:56px;padding:4px 8px;border-radius:12px;font-size:11px;line-height:1.2}
+.trump svg{width:20px;height:20px}.trump em{font-style:normal;font-weight:600;font-size:11px}.suitchip{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--card);color:var(--red);border:1px solid var(--card-line)}.suitchip svg{width:16px;height:16px;fill:currentColor}
+.strip{display:flex;justify-content:center;gap:14px;font-size:13px;color:var(--muted);padding:2px 12px 6px;flex:none}
+.strip b{color:var(--text);font-weight:600}
+.felt{flex:1;position:relative;margin:4px 12px 0;border-radius:30px;min-height:0}
+.seat{position:absolute;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.seat.top{top:10px;left:50%;transform:translateX(-50%)}
+.seat.left{left:6px;top:42%;transform:translateY(-50%)}
+.seat.right{right:6px;top:42%;transform:translateY(-50%)}
+.av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:18px}
+.nm{font-size:13px;font-weight:600;line-height:1.2}
+.cnt{font-size:11px;color:var(--muted);line-height:1.2}
+.bidchip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+.trick{position:absolute;left:50%;top:44%;width:176px;height:214px;transform:translate(-50%,-50%)}
+.trick .card{--cw:56px;position:absolute;box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.trick .t-top{left:60px;top:0;transform:rotate(-4deg)}
+.trick .t-right{right:0;top:62px;transform:rotate(7deg)}
+.trick .t-left{left:0;top:62px;transform:rotate(-8deg)}
+.trick .slot{position:absolute;left:60px;bottom:0;width:56px;height:80px;border-radius:7px;border:2px dashed var(--slot);display:grid;place-items:center;font-size:11px;color:var(--slot)}
+.turn{display:flex;align-items:center;justify-content:center;gap:10px;height:44px;flex:none;margin:8px 16px 0;border-radius:14px;font-size:15px;font-weight:600;position:relative;overflow:hidden}
+.turn svg{width:18px;height:18px}
+.turn .tbar{position:absolute;bottom:0;right:0;height:3px;width:62%}
+.hand{height:122px;flex:none;display:flex;align-items:flex-end;padding:0 16px 12px;direction:ltr}
+.hand .card{--cw:54px;margin-left:calc((100% - 54px)/12 - 54px);box-shadow:-2px 0 6px rgba(0,0,0,.18);transition:transform .2s}
+.hand .card:first-child{margin-left:0}
+.hand .card.off::after{content:"";position:absolute;inset:0;background:var(--veil)}
+.hand .card.sel{outline:3px solid var(--accent);outline-offset:-1px}
+
+/* =============== D1 — ديوانية =============== */
+.d1{--bg:#1A1210;--surface:#271B16;--surface2:#33241D;--line:#4A362B;--text:#F5EBDD;--muted:#C2B29C;--accent:#E3A93F;--on-accent:#1A1210;--card:#FBF4E6;--card-line:#E3D3B4;--red:#B3261E;--blk:#1F1A17;--veil:rgba(26,18,16,.40);--slot:rgba(245,235,221,.45);--fd:'Reem Kufi',sans-serif;--fb:'Readex Pro',sans-serif;--fr:'Readex Pro',sans-serif;--table:radial-gradient(ellipse at 50% 40%,#7A2A36 0%,#5B1C27 55%,#3E1219 100%);background:var(--bg)}
+.d1 .logo{display:flex;align-items:center;gap:8px;font-family:'Reem Kufi';font-weight:700;font-size:30px;color:var(--accent);line-height:1}
+.d1 .logo svg{width:30px;height:30px}
+.d1 .logo small{display:block;font:600 9px/1 'Readex Pro';letter-spacing:.35em;color:var(--muted);margin-top:3px}
+.d1 .game{background:linear-gradient(180deg,#2E201A,#241914);border:1px solid var(--line)}
+.d1 .game.av1{border-color:#8A6A33;box-shadow:inset 0 1px 0 rgba(227,169,63,.25)}
+.d1 .gicon{background:var(--card)}
+.d1 .game.soon{opacity:.62}
+.d1 .game.soon .gicon{background:#3A2A22;color:var(--muted)}
+.d1 .tag{background:rgba(227,169,63,.14);color:var(--accent)}
+.d1 .soon .tag{background:#3A2A22;color:var(--muted)}
+.d1 .btn.primary{background:linear-gradient(180deg,#EDB955,#D89A2E);color:var(--on-accent);box-shadow:0 6px 18px -6px rgba(227,169,63,.6)}
+.d1 .join input{background:var(--surface);border:1px solid #8C7560;color:var(--text)}
+.d1 .join .btn{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+.d1 .felt{background:var(--table);box-shadow:inset 0 0 0 3px #A8843F,inset 0 0 0 7px #3E1219,inset 0 0 40px rgba(0,0,0,.5)}
+.d1 .av{background:#3A2A22;color:var(--accent);box-shadow:0 0 0 2px #A8843F}
+.d1 .seat{color:var(--text)}
+.d1 .cnt{color:#E4D3BC}
+.d1 .bidchip{background:var(--accent);color:var(--on-accent)}
+.d1 .trump{background:var(--card);color:var(--blk)}
+.d1 .trump span{color:#5B4A3D}
+.d1 .team.us b{color:var(--accent)}
+.d1 .turn{background:rgba(227,169,63,.14);color:var(--accent);border:1px solid rgba(227,169,63,.45)}
+.d1 .turn .tbar{background:var(--accent)}
+.d1 .pile{position:absolute;display:flex;align-items:center;gap:6px;font-size:12px;color:#F2E3CC}
+.d1 .pile .stack{position:relative;width:30px;height:40px}
+.d1 .pile .stack i{position:absolute;inset:0;border-radius:4px;background:#6E1A28;border:1.5px solid #C9A24E}
+.d1 .pile.us{left:14px;bottom:14px}.d1 .pile.them{right:14px;top:16px;flex-direction:row-reverse}
+.d1 .card.back{background:#6E1A28;border:3px solid var(--card)}
+.d1 .card.back::before{content:"";position:absolute;inset:3px;border:1px solid #C9A24E;border-radius:4px;background:
+ repeating-linear-gradient(45deg,transparent 0 7px,rgba(201,162,78,.35) 7px 8px),
+ repeating-linear-gradient(-45deg,transparent 0 7px,rgba(201,162,78,.35) 7px 8px)}
+.d1 .card.back::after{content:"";position:absolute;left:50%;top:50%;width:34%;aspect-ratio:1;background:#C9A24E;transform:translate(-50%,-50%) rotate(45deg);box-shadow:0 0 0 3px #6E1A28;clip-path:polygon(50% 0,64% 36%,100% 50%,64% 64%,50% 100%,36% 64%,0 50%,36% 36%)}
+.d1 .card .fl{font-weight:700}
+.d1 .deck .card:not(.back)::before{content:"";position:absolute;inset:4px;border:1px solid #E6D2A8;border-radius:6px}
+
+/* =============== D2 — حارة =============== */
+.d2{--bg:#FFF6EC;--surface:#FFFFFF;--surface2:#FFE8C6;--line:#16161D;--text:#16161D;--muted:#57525C;--accent:#FFC53D;--accent-text:#B2400F;--on-accent:#16161D;--tomato:#F2542D;--grass:#1E9E6A;--card:#FFFFFF;--card-line:#16161D;--red:#D7261E;--blk:#16161D;--veil:rgba(255,246,236,.55);--slot:rgba(22,22,29,.45);--fd:'Lalezar',sans-serif;--fb:'Rubik',sans-serif;--fr:'Rubik',sans-serif;--table:#FFC53D radial-gradient(rgba(22,22,29,.12) 1.5px,transparent 1.6px) 0 0/16px 16px;background:var(--bg)}
+.d2 .card{border-width:2px;box-shadow:2px 2px 0 var(--blk)}
+.d2 .card .ix b{font-weight:800}
+.d2 .card .fl{font-weight:400}
+.d2 .logo{display:inline-block;font-family:'Lalezar';font-size:36px;line-height:1.15;color:#fff;-webkit-text-stroke:7px var(--blk);paint-order:stroke fill;text-shadow:3px 4px 0 var(--tomato);transform:rotate(-4deg);padding:0 4px}
+.d2 .lb-head .logo{font-size:32px}
+.d2 .icbtn{background:#fff;border:2px solid var(--blk);box-shadow:2px 2px 0 var(--blk)}
+.d2 .lb-title{font-weight:400;font-size:32px}
+.d2 .games{grid-template-columns:1fr 1fr;gap:12px}
+.d2 .game{flex-direction:column;align-items:flex-start;gap:8px;min-height:150px;border:2px solid var(--blk);box-shadow:4px 4px 0 var(--blk);padding:12px}
+.d2 .game.g1{background:var(--tomato)}.d2 .game.g2{background:var(--accent)}
+.d2 .game.g1 .gtxt h3,.d2 .game.g1 .gtxt p{color:#fff}.d2 .game.g1 .gtxt p{opacity:.95}
+.d2 .gtxt h3{font-weight:400;font-size:24px}
+.d2 .gicon{background:#fff;border:2px solid var(--blk);width:48px;height:48px}
+.d2 .game.soon{background:#F1E9DF;box-shadow:none;border-style:dashed;min-height:112px}
+.d2 .game.soon .gicon{background:transparent;color:#8A8390;border-color:#8A8390}
+.d2 .tag{position:absolute;top:10px;left:10px;background:#fff;border:2px solid var(--blk);color:var(--blk)}
+.d2 .soon .tag{background:transparent;border-color:#8A8390;color:#57525C}
+.d2 .btn.primary{background:var(--blk);color:#fff;box-shadow:4px 4px 0 var(--tomato)}
+.d2 .join input{background:#fff;border:2px solid var(--blk);color:var(--blk)}
+.d2 .join .btn{background:var(--accent);color:var(--blk);border:2px solid var(--blk)}
+.d2 .bnav{border-top:2px solid var(--blk)}
+.d2 .bnav a.on{color:var(--blk)}
+.d2 .bnav a.on svg{background:var(--accent);border-radius:8px;box-shadow:0 0 0 4px var(--accent)}
+.d2 .tb-top .icbtn{width:44px;height:44px}
+.d2 .score{gap:8px}
+.d2 .team{background:#fff;border:2px solid var(--blk);border-radius:14px;padding:4px 10px;box-shadow:2px 2px 0 var(--blk)}
+.d2 .team.us{background:var(--tomato)}.d2 .team.us span,.d2 .team.us b{color:#fff}
+.d2 .team b{font-weight:800}
+.d2 .target{border:0;font-weight:600}
+.d2 .trump{background:#fff;border:2px solid var(--blk);box-shadow:2px 2px 0 var(--blk)}
+.d2 .felt{background:var(--table);border:2px solid var(--blk);border-radius:40% 40% 36% 36%/30% 30% 26% 26%}
+.d2 .av{border:2px solid var(--blk);background:#fff;box-shadow:2px 2px 0 var(--blk)}
+.d2 .seat.top .av{background:#8FD3B5}.d2 .seat.left .av{background:#FFB8A3}.d2 .seat.right .av{background:#B9C8FF}
+.d2 .nm{background:#fff;border:2px solid var(--blk);border-radius:8px;padding:0 6px}
+.d2 .cnt{color:var(--blk)}
+.d2 .bidchip{background:var(--blk);color:#fff}
+.d2 .turn{background:var(--blk);color:#fff}
+.d2 .turn .tbar{background:var(--tomato);height:4px}
+.d2 .stk{position:absolute;right:60px;top:22%;transform:rotate(8deg);background:#fff;border:2px solid var(--blk);border-radius:14px 14px 4px 14px;padding:4px 10px;font-family:'Lalezar';font-size:17px;box-shadow:3px 3px 0 var(--blk);white-space:nowrap}
+.d2 .react{position:absolute;left:10px;bottom:10px;height:40px;padding:0 12px;border-radius:12px;background:#fff;border:2px solid var(--blk);box-shadow:2px 2px 0 var(--blk);font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
+.d2 .card.back{background:var(--tomato) repeating-linear-gradient(135deg,var(--accent) 0 5px,transparent 5px 12px)}
+.d2 .card.back::after{content:"ل";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:54%;aspect-ratio:1;border-radius:50%;background:#fff;border:2px solid var(--blk);display:grid;place-items:center;font:calc(var(--cw)*.3)/1 'Lalezar';color:var(--blk);padding-top:4%}
+
+/* =============== D3 — دفتر =============== */
+.d3{--bg:#F3EEE3;--surface:#FBF8F1;--surface2:#EAE3D3;--line:#D6CCB8;--text:#1B1B1B;--muted:#655E54;--accent:#C23B22;--on-accent:#FFFFFF;--pencil:#2B4C7E;--card:#FFFDF8;--card-line:#C9BFAA;--red:#C23B22;--blk:#1B1B1B;--veil:rgba(243,238,227,.5);--slot:rgba(27,27,27,.35);--fd:'Aref Ruqaa',serif;--fb:'IBM Plex Sans Arabic',sans-serif;--fr:'IBM Plex Sans Arabic',sans-serif;--table:#EAE3D3;background:var(--bg)}
+.d3 .card{border-radius:5px}
+.d3 .card .fl{font-weight:700}
+.d3 .logo{display:inline-flex;align-items:center;gap:8px;font-family:'Aref Ruqaa';font-weight:700;font-size:40px;line-height:1;color:var(--text)}
+.d3 .lb-head .logo{font-size:34px}
+.d3 .seal{width:26px;height:26px;border-radius:50%;background:var(--accent);display:grid;place-items:center;color:#FBF8F1;transform:rotate(-8deg)}
+.d3 .seal svg{width:13px;height:13px}
+.d3 .icbtn{background:transparent;border:1px solid var(--line)}
+.d3 .lb-title{font-size:32px}
+.d3 .games{gap:0;border-top:1.5px solid var(--text)}
+.d3 .game{background:transparent;border-radius:0;border-bottom:1px solid var(--line);padding:14px 2px;min-height:72px}
+.d3 .gicon{background:transparent;border:1px solid var(--line);border-radius:50%;width:46px;height:46px}
+.d3 .gtxt h3{font-size:24px}
+.d3 .game .dots{flex:1;align-self:center;border-bottom:2px dotted var(--line);margin:0 4px;min-width:12px;max-width:40px}
+.d3 .tag{background:transparent;color:var(--accent);padding:4px 0;font-size:14px}
+.d3 .soon{opacity:.6}.d3 .soon .tag{color:var(--muted)}
+.d3 .btn.primary{background:var(--text);color:#FBF8F1}
+.d3 .join input{background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:12px}
+.d3 .join .btn{background:transparent;border:1.5px solid var(--text);color:var(--text)}
+.d3 .bnav a.on{color:var(--accent)}
+.d3 .tb-top{border-bottom:1px solid var(--line)}
+.d3 .sheet{flex:1;display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:6px;height:50px;overflow:hidden;background-image:repeating-linear-gradient(transparent 0 15px,#E5DCCB 15px 16px)}
+.d3 .sheet div{display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Aref Ruqaa';font-size:15px;line-height:1}
+.d3 .sheet div+div{border-inline-start:1.5px solid var(--accent)}
+.d3 .sheet s{color:#8C8474;font-size:13px}
+.d3 .sheet b{font-size:24px;font-weight:700}
+.d3 .sheet .us b{color:var(--text)}.d3 .sheet .them b{color:var(--pencil)}
+.d3 .sheet em{font-style:normal;font:500 11px 'IBM Plex Sans Arabic';color:var(--muted)}
+.d3 .trump{border:1px solid var(--line);background:var(--surface)}
+.d3 .felt{background:var(--table);border-radius:50%/42%;box-shadow:inset 0 0 0 1px var(--line),inset 0 0 0 8px var(--table),inset 0 0 0 9px #CFC4AE}
+.d3 .av{background:var(--surface);border:1px solid var(--text);font-family:'Aref Ruqaa';font-size:22px}
+.d3 .bidchip{background:transparent;border:1px solid var(--accent);color:var(--accent)}
+.d3 .turn{background:transparent;border:1.5px solid var(--text);color:var(--text)}
+.d3 .turn .tbar{background:var(--accent);height:2px}
+.d3 .card.back{background:var(--blk)}
+.d3 .card.back::before{content:"";position:absolute;inset:4px;border:1px solid rgba(255,253,248,.55);border-radius:3px}
+.d3 .card.back::after{content:"ل";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-8deg);width:46%;aspect-ratio:1;border-radius:50%;background:var(--accent);color:#FFFDF8;display:grid;place-items:center;font:700 calc(var(--cw)*.28)/1 'Aref Ruqaa';padding-bottom:6%}
+
+/* focus */
+.btn:focus-visible,.icbtn:focus-visible,.join input:focus-visible,.bnav a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="s" viewBox="0 0 100 100"><path d="M50 4C62 25 95 40 95 62C95 76 84 85 72 85C63 85 56 80 53 75C54 84 58 91 67 97H33C42 91 46 84 47 75C44 80 37 85 28 85C16 85 5 76 5 62C5 40 38 25 50 4Z"/></symbol>
+    <symbol id="h" viewBox="0 0 100 100"><path d="M50 92C20 68 4 50 4 31C4 15 16 5 30 5C40 5 47 11 50 19C53 11 60 5 70 5C84 5 96 15 96 31C96 50 80 68 50 92Z"/></symbol>
+    <symbol id="d" viewBox="0 0 100 100"><path d="M50 2L88 50L50 98L12 50Z"/></symbol>
+    <symbol id="c" viewBox="0 0 100 100"><circle cx="50" cy="27" r="21"/><circle cx="26" cy="58" r="21"/><circle cx="74" cy="58" r="21"/><path d="M42 44H58L55 66C56 80 60 89 68 97H32C40 89 44 80 45 66Z"/></symbol>
+    <symbol id="star8" viewBox="0 0 100 100"><path d="M50 4L61 26L85 15L74 39L96 50L74 61L85 85L61 74L50 96L39 74L15 85L26 61L4 50L26 39L15 15L39 26Z"/></symbol>
+  </defs>
+</svg>
+
+<header class="page-head">
+  <h1>لَمّة | LAMMA — ثلاث اتجاهات بصرية</h1>
+  <p>شريحة للاختيار فقط: لكل اتجاه لوحة ألوان وخطوط وشعار نصي ووجه الورقة وظهرها، وموكاب للّوبي وطاولة اللعب بعرض 390px. الأسماء والأرقام أمثلة.</p>
+</header>
+
+<main class="dirs">
+  <!-- ============ D1 ============ -->
+  <section class="dir d1" data-d="1">
+    <div class="info">
+      <div class="dir-label">الاتجاه 1</div>
+      <h2>ديوانية</h2>
+      <p class="idea">سهرة ورق بالبيت: جلد نبيذي دافئ وحواف نحاسية وورق كريمي. فخم بلا كازينو، ومريح للعين بالسهرات الطويلة.</p>
+      <div class="logo-row">
+        <div class="logo"><svg class="su" style="color:#E3A93F"><use href="#star8"/></svg><div>لَمّة<small>LAMMA</small></div></div>
+        <div class="logo-note">شعار: «لَمّة» بخط كوفي هندسي (Reem Kufi 700) بلون نحاسي، مع نجمة ثمانية كرمز للطاولة وأطرافها الأربعة.</div>
+      </div>
+      <div class="sw">
+        <div style="background:#1A1210"><span>#1A1210</span></div>
+        <div style="background:#5B1C27"><span>#5B1C27</span></div>
+        <div style="background:#E3A93F"><span>#E3A93F</span></div>
+        <div style="background:#FBF4E6"><span>#FBF4E6</span></div>
+        <div style="background:#271B16"><span>#271B16</span></div>
+        <div style="background:#C2B29C"><span>#C2B29C</span></div>
+        <div style="background:#B3261E"><span>#B3261E</span></div>
+        <div style="background:#1F1A17"><span>#1F1A17</span></div>
+      </div>
+      <p class="fonts"><b>العناوين:</b> Reem Kufi · <b>النص والأرقام:</b> Readex Pro
+        <span class="samp-d">طرنيب سوري 41 — Tarneeb</span>
+        <span class="samp-b">اطلب، العب، ولمّ الأكلات مع أصحابك.</span></p>
+      <div class="sig"><b>الحركة المميزة: «اللمّة تتكوّم».</b> كل أكلة تربحها تنسحب لكومة ورق قدّام فريقك، وتكبر الكومة مع كل أكلة. التقدّم ملموس وتشوفه بعينك، ومنه جاء اسم المنصة.</div>
+      <div class="deck" data-deck></div>
+    </div>
+    <div class="phones" data-phones></div>
+  </section>
+
+  <!-- ============ D2 ============ -->
+  <section class="dir d2" data-d="2">
+    <div class="info">
+      <div class="dir-label">الاتجاه 2</div>
+      <h2>حارة</h2>
+      <p class="idea">ملصقات وحدود سميكة وألوان شمس وطماطم على خلفية فاتحة. شبابي ومرح ويلفت الانتباه على السوشال، وبعيد تماماً عن شكل الكازينو.</p>
+      <div class="logo-row">
+        <div class="logo">لَمّة</div>
+        <div class="logo-note">شعار: «لَمّة» بخط Lalezar الأبيض بحدّ حبر سميك وظل طماطمي، ومائل كأنه ملصق على دفتر.</div>
+      </div>
+      <div class="sw">
+        <div style="background:#FFF6EC"><span>#FFF6EC</span></div>
+        <div style="background:#F2542D"><span>#F2542D</span></div>
+        <div style="background:#FFC53D"><span>#FFC53D</span></div>
+        <div style="background:#16161D"><span>#16161D</span></div>
+        <div style="background:#FFFFFF"><span>#FFFFFF</span></div>
+        <div style="background:#1E9E6A"><span>#1E9E6A</span></div>
+        <div style="background:#D7261E"><span>#D7261E</span></div>
+        <div style="background:#57525C"><span>#57525C</span></div>
+      </div>
+      <p class="fonts"><b>العناوين:</b> Lalezar · <b>النص والأرقام:</b> Rubik
+        <span class="samp-d">طرنيب سوري 41 — Tarneeb</span>
+        <span class="samp-b">اطلب، العب، ولمّ الأكلات مع أصحابك.</span></p>
+      <div class="sig"><b>الحركة المميزة: «ارمِ ستيكر».</b> اضغط على صورة أي لاعب لترمي عليه ستيكر أو جملة جاهزة («يلا يا بطل!») فتنلصق على الطاولة ثانيتين. فيها مناكفة الطاولة الحقيقية وما بتوقف اللعب.</div>
+      <div class="deck" data-deck></div>
+    </div>
+    <div class="phones" data-phones></div>
+  </section>
+
+  <!-- ============ D3 ============ -->
+  <section class="dir d3" data-d="3">
+    <div class="info">
+      <div class="dir-label">الاتجاه 3</div>
+      <h2>دفتر</h2>
+      <p class="idea">حبر على ورق: هادئ وأنيق، رقعة الخط للعناوين وخاتم أحمر واحد كلون وحيد. مستوحى من ورقة تسجيل النقاط اللي على كل طاولة طرنيب.</p>
+      <div class="logo-row">
+        <div class="logo">لَمّة <span class="seal"><svg class="su"><use href="#h"/></svg></span></div>
+        <div class="logo-note">شعار: «لَمّة» بخط الرقعة (Aref Ruqaa 700) بالحبر الأسود، مع خاتم زنجفري صغير فيه قلب مثل ختم على الورقة.</div>
+      </div>
+      <div class="sw">
+        <div style="background:#F3EEE3"><span>#F3EEE3</span></div>
+        <div style="background:#1B1B1B"><span>#1B1B1B</span></div>
+        <div style="background:#C23B22"><span>#C23B22</span></div>
+        <div style="background:#2B4C7E"><span>#2B4C7E</span></div>
+        <div style="background:#FBF8F1"><span>#FBF8F1</span></div>
+        <div style="background:#EAE3D3"><span>#EAE3D3</span></div>
+        <div style="background:#D6CCB8"><span>#D6CCB8</span></div>
+        <div style="background:#655E54"><span>#655E54</span></div>
+      </div>
+      <p class="fonts"><b>العناوين:</b> Aref Ruqaa · <b>النص والأرقام:</b> IBM Plex Sans Arabic
+        <span class="samp-d">طرنيب سوري 41 — Tarneeb</span>
+        <span class="samp-b">اطلب، العب، ولمّ الأكلات مع أصحابك.</span></p>
+      <div class="sig"><b>الحركة المميزة: «الدفتر الحي».</b> شريط النقاط فوق الطاولة ورقة تسجيل حقيقية: بعد كل جولة يُكتب الرقم الجديد بخط اليد ويُشطب القديم. اضغط عليه يفتح الدفتر كاملاً بكل الجولات.</div>
+      <div class="deck" data-deck></div>
+    </div>
+    <div class="phones" data-phones></div>
+  </section>
+</main>
+
+<script>
+const SN={s:'بستوني',h:'قلب',c:'سباتي',d:'ديناري'};
+const su=(s,c='')=>`<svg class="su ${c}" aria-hidden="true"><use href="#${s}"/></svg>`;
+function card(r,s,cls='',style=''){
+  const col=(s==='h'||s==='d')?'red':'blk', face=['K','Q','J'].includes(r);
+  return `<div class="card ${col} ${cls}" style="${style}" role="img" aria-label="${r} ${SN[s]}">
+    <div class="ix"><b>${r}</b>${su(s)}</div>
+    <div class="ctr">${face?`<span class="fl">${r}</span>${su(s,'fs')}`:su(s,'big')}</div>
+    <div class="ix br"><b>${r}</b>${su(s)}</div></div>`;
+}
+const back=(style='')=>`<div class="card back" style="${style}" role="img" aria-label="ظهر الورقة"></div>`;
+const sb=`<div class="sb"><span>9:41</span><span class="isl"></span><span class="bat"></span></div>`;
+const ico={
+  menu:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  bell:'<svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  home:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>',
+  users:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.8 3 2.6 3.5 5.2"/></svg>',
+  door:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 10h16M10 10v10"/></svg>',
+  me:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.2-6 8-6s7 2 8 6"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round"><path d="M12 5v14M5 12h14"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>'
+};
+const logos={
+  1:`<div class="logo" style="font-size:26px"><svg class="su" style="color:#E3A93F;width:26px;height:26px"><use href="#star8"/></svg><div>لَمّة<small>LAMMA</small></div></div>`,
+  2:`<div class="logo">لَمّة</div>`,
+  3:`<div class="logo">لَمّة <span class="seal"><svg class="su"><use href="#h"/></svg></span></div>`
+};
+
+function lobby(d){
+  const g=(cls,icon,title,meta,tag,extra='')=>`<div class="game ${cls}" ${cls.includes('soon')?'aria-disabled="true"':'role="button" tabindex="0"'}>
+     <div class="gicon">${icon}</div><div class="gtxt"><h3>${title}</h3><p>${meta}</p></div>${d==3?'<span class="dots"></span>':''}<span class="tag">${tag}</span></div>`;
+  const i1=`<svg class="su" style="color:var(--red)"><use href="#h"/></svg>`;
+  const i2=`<svg class="su" style="color:var(--blk)"><use href="#s"/></svg>`;
+  const i3=`<svg class="su" style="color:currentColor"><use href="#d"/></svg>`;
+  const i4=`<svg class="su" style="color:currentColor"><use href="#c"/></svg>`;
+  const playTag=d==3?'العب ←':'متاحة';
+  return `<div class="screen">${sb}<div class="lobby">
+    <div class="lb-head">${logos[d]}<button class="icbtn" aria-label="الإشعارات">${ico.bell}</button></div>
+    <p class="hello">مسا الخير يا <b>سامي</b></p>
+    <h2 class="lb-title">شو بدنا نلعب الليلة؟</h2>
+    <div class="games">
+      ${g('av1 g1',i1,'طرنيب','4 لاعبين · فريقين',playTag)}
+      ${g('av1 g2',i2,'طرنيب سوري 41','4 لاعبين · حتى 41',playTag)}
+      ${g('soon',i3,'تركس','4 لاعبين','قريباً')}
+      ${g('soon',i4,'بلوت','4 لاعبين','قريباً')}
+    </div>
+    <div class="live"><i></i> 1,284 لاعب عم يلعبوا هلّق</div>
+    <div class="room">
+      <button class="btn primary">${ico.plus} أنشئ غرفة وادعِ أصحابك</button>
+      <div class="join"><label class="sr" for="code${d}">كود الغرفة</label><input id="code${d}" placeholder="كود الغرفة" maxlength="6" autocomplete="off"><button class="btn">ادخل</button></div>
+    </div>
+    <nav class="bnav" aria-label="التنقل">
+      <a href="#" class="on" aria-current="page">${ico.home}الرئيسية</a><a href="#">${ico.users}الأصحاب</a><a href="#">${ico.door}الغرف</a><a href="#">${ico.me}حسابي</a>
+    </nav></div><div class="home"></div></div>`;
+}
+
+function table(d){
+  const hand=[['A','s'],['K','s'],['9','s'],['5','s'],['Q','h'],['10','h'],['7','h'],['3','h'],['K','c'],['J','c'],['4','c'],['A','d'],['8','d']];
+  const handHtml=hand.map(([r,s],i)=>{
+    const k=i-6, rot=k*1.6, y=Math.abs(k)*Math.abs(k)*0.3;
+    const playable=s==='h', sel=(r==='Q'&&s==='h');
+    const ty= sel? y-18 : (playable? y-6 : y);
+    return card(r,s,(playable?'':'off')+(sel?' sel':''),`transform:translateY(${ty}px) rotate(${rot}deg);transform-origin:50% 120%;z-index:${i}`);
+  }).join('');
+  const score = d==3
+    ? `<div class="sheet" role="img" aria-label="النقاط: لنا 23، لهم 17، اللعب حتى 41"><div class="us"><em>لنا</em><s>15</s><b>23</b></div><div class="them"><em>لهم</em><s>9</s><b>17</b></div></div>`
+    : `<div class="score"><div class="team us"><span>لنا</span><b>23</b></div><div class="target">حتى 41</div><div class="team them"><span>لهم</span><b>17</b></div></div>`;
+  const extra = d==1
+    ? `<div class="pile them"><div class="stack"><i style="transform:rotate(-6deg)"></i><i style="transform:rotate(4deg)"></i><i></i></div><span>لمّتهم 3</span></div>
+       <div class="pile us"><div class="stack"><i style="transform:rotate(-8deg)"></i><i style="transform:rotate(3deg)"></i><i style="transform:rotate(-2deg)"></i><i style="transform:rotate(7deg)"></i></div><span>لمّتنا 4</span></div>`
+    : d==2 ? `<div class="stk">يلا يا بطل!</div><div class="react" role="button" aria-label="ستيكرات">ستيكر +</div>` : '';
+  const strip = `<div class="strip"><span>الطلب <b>8</b> · رامي</span><span>أكلات: لنا <b>4</b> · لهم <b>3</b></span></div>`;
+  return `<div class="screen">${sb}
+    <header class="tb-top"><button class="icbtn" aria-label="القائمة">${ico.menu}</button>${score}
+      <div class="trump" aria-label="الطرنيب: بستوني"><span>الطرنيب</span>${su('s')}<em>بستوني</em></div></header>
+    ${strip}
+    <div class="felt">
+      <div class="seat top"><div class="av">ر</div><div class="nm">رامي · شريكك</div><div class="bidchip">طلب 8</div></div>
+      <div class="seat right"><div class="av">ل</div><div class="nm">لين</div><div class="cnt">9 ورقات</div></div>
+      <div class="seat left"><div class="av">خ</div><div class="nm">خالد</div><div class="cnt">9 ورقات</div></div>
+      <div class="trick" dir="ltr">
+        ${card('K','h','t-top')}${card('9','h','t-right')}${card('4','h','t-left')}
+        <div class="slot">ورقتك</div>
+      </div>
+      ${extra}
+    </div>
+    <div class="turn" role="status">${ico.clock} دورك · العب قلب <span class="suitchip">${su('h')}</span><span class="tbar"></span></div>
+    <div class="hand" aria-label="ورقك: 13 ورقة">${handHtml}</div>
+    <div class="home"></div></div>`;
+}
+
+document.querySelectorAll('.dir').forEach(sec=>{
+  const d=+sec.dataset.d;
+  sec.querySelector('[data-deck]').innerHTML=card('A','h')+card('K','s')+card('Q','d')+card('7','c')+back();
+  sec.querySelector('[data-phones]').innerHTML=
+    `<div><p class="cap">اللوبي</p><div class="phone" id="p${d}-lobby">${lobby(d)}</div></div>
+     <div><p class="cap">طاولة اللعب — دورك</p><div class="phone" id="p${d}-table">${table(d)}</div></div>`;
+});
+if(location.hash){const t=document.querySelector(location.hash);if(t)t.scrollIntoView();}
+</script>
+</body>
+</html>

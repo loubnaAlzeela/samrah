@@ -1,0 +1,5 @@
+# store text files with LF on every machine (the tooling expects LF)
+* text=auto eol=lf
+*.png binary
+*.wav binary
+*.jar binary

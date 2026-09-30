@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#08111f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>لعبة 187 - بيع وشراء</title>
+<style>
+:root{
+  --bg:#08111f;
+  --surface:#101a2d;
+  --surface2:#16233b;
+  --surface3:#1c2c4a;
+  --text:#f6f8ff;
+  --muted:#9eabc7;
+  --gold:#f4c95d;
+  --green:#38c985;
+  --red:#ff6b6b;
+  --line:#2d4067;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:#050b14;color:var(--text);font-family:Tahoma,Arial,sans-serif}
+body{min-height:100vh}
+button,input,select{font:inherit}
+button{touch-action:manipulation}
+.app{
+  width:100%;
+  max-width:480px;
+  min-height:100vh;
+  margin:0 auto;
+  padding:0 12px 92px;
+  background:
+    radial-gradient(circle at top,#12213c 0,#0a1425 42%,#07101d 100%);
+  position:relative;
+}
+header{
+  position:sticky;top:0;z-index:20;
+  margin:0 -12px 12px;
+  padding:12px 14px;
+  background:rgba(6,12,23,.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(255,255,255,.07);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+h1{font-size:22px;margin:0}
+h2,h3{margin:0 0 10px}
+.sub{font-size:11px;color:var(--muted);margin-top:2px}
+.badge{
+  font-size:11px;background:var(--gold);color:#2b2100;
+  padding:7px 9px;border-radius:999px;font-weight:800;white-space:nowrap
+}
+.panel{
+  background:linear-gradient(180deg,rgba(19,31,52,.98),rgba(13,23,40,.98));
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:20px;
+  padding:14px;
+  margin-bottom:12px;
+  box-shadow:0 12px 26px rgba(0,0,0,.22);
+}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+input,select{
+  width:100%;
+  padding:13px 12px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:#0b1425;
+  color:#fff;
+  outline:none;
+}
+button{
+  min-height:46px;
+  border:none;border-radius:14px;
+  padding:12px 14px;
+  background:#263b63;color:#fff;font-weight:800;cursor:pointer
+}
+button.primary{background:linear-gradient(180deg,#ffd86f,#d5a92f);color:#241d00}
+button.good{background:#176b49}
+button.danger{background:#8f3142}
+button:disabled{opacity:.4}
+.small{font-size:12px;color:var(--muted)}
+.hidden{display:none!important}
+.gold{color:var(--gold)}
+.goodtxt{color:var(--green)}
+.badtxt{color:var(--red)}
+
+.mobile-hero{
+  text-align:center;padding:6px 0 4px;
+}
+.mobile-hero .logo{
+  width:68px;height:68px;border-radius:22px;margin:0 auto 10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:34px;background:linear-gradient(145deg,#f7d66f,#b9861b);
+  color:#201700;box-shadow:0 12px 30px rgba(244,201,93,.18)
+}
+.mobile-hero p{margin:4px 0 0;color:var(--muted);font-size:13px}
+
+.players-scroll{
+  display:flex;gap:9px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none
+}
+.players-scroll::-webkit-scrollbar{display:none}
+.player{
+  min-width:150px;
+  background:var(--surface2);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:17px;padding:11px;
+}
+.player.active{outline:2px solid var(--gold)}
+.player.buyer{box-shadow:0 0 0 2px #ff9f43 inset}
+.score{font-size:22px;font-weight:900;margin:4px 0}
+
+.kpis{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:8px
+}
+.kpi{
+  background:#0b1425;border:1px solid rgba(255,255,255,.06);
+  border-radius:14px;padding:10px
+}
+.kpi b{font-size:14px}
+
+.table{
+  min-height:245px;
+  border-radius:24px;
+  padding:14px;
+  border:3px solid #7f6034;
+  background:
+    radial-gradient(circle at center,#14704b 0,#0d5b3b 42%,#073923 100%);
+  box-shadow:inset 0 0 35px rgba(0,0,0,.28),0 16px 30px rgba(0,0,0,.25)
+}
+.table h3{text-align:center;font-size:15px;color:#ecfff5}
+.cards{
+  display:flex;gap:7px;overflow-x:auto;padding:8px 2px 10px;
+  min-height:112px;scrollbar-width:none
+}
+.cards::-webkit-scrollbar{display:none}
+.center{justify-content:center;align-items:center;text-align:center}
+.trick{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.card{
+  flex:0 0 auto;
+  width:64px;height:94px;border-radius:12px;
+  background:#f7f7fb;color:#171717;
+  border:2px solid #d8ddeb;
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:7px;user-select:none;font-weight:900;
+  box-shadow:0 5px 12px rgba(0,0,0,.22);
+  transition:.16s transform,.16s outline
+}
+.card.red{color:#c92a34}
+.card.selected{outline:4px solid var(--gold);transform:translateY(-6px)}
+.card.back{
+  background:
+    linear-gradient(135deg,transparent 25%,rgba(255,255,255,.05) 25%,rgba(255,255,255,.05) 50%,transparent 50%,transparent 75%,rgba(255,255,255,.05) 75%),
+    #1a2b52;
+  background-size:18px 18px;color:transparent;border-color:#6d7ba2
+}
+.card .rank{font-size:17px}.card .suit{font-size:22px;text-align:center}
+.card .small{font-size:9px;color:inherit;opacity:.7}
+.notice{
+  background:rgba(5,16,12,.55);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;padding:10px 11px;font-size:13px;
+}
+.log{
+  max-height:180px;overflow:auto;background:#091220;
+  padding:9px;border-radius:14px;font-size:12px
+}
+.log div{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+
+.mobile-actions{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  z-index:30;width:min(100%,480px);
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:1px;background:#07101d;border-top:1px solid rgba(255,255,255,.08);
+  padding:8px 8px max(8px,env(safe-area-inset-bottom));
+}
+.mobile-actions button{
+  min-height:56px;padding:6px 4px;border-radius:12px;
+  background:transparent;color:var(--muted);font-size:11px
+}
+.mobile-actions button span{display:block;font-size:20px;margin-bottom:3px}
+.mobile-actions button.active{background:#142440;color:#fff}
+
+.section-title{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:8px
+}
+.auction-quick{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px
+}
+.auction-quick button{width:100%}
+
+#setup .grid{grid-template-columns:1fr}
+#setup .row button{flex:1}
+#auctionPanel input{max-width:130px}
+#trumpPanel .row{display:grid;grid-template-columns:1fr 1fr}
+#trumpPanel button{font-size:16px}
+
+.modal-sheet{
+  position:fixed;inset:0;background:rgba(0,0,0,.62);
+  z-index:60;display:flex;align-items:flex-end;justify-content:center
+}
+.sheet{
+  width:min(100%,480px);max-height:82vh;overflow:auto;
+  background:#0f1b2e;border-radius:24px 24px 0 0;padding:18px 16px 24px;
+  border-top:1px solid rgba(255,255,255,.08)
+}
+.sheet-grab{width:52px;height:5px;background:#53627d;border-radius:10px;margin:0 auto 14px}
+
+@media(min-width:700px){
+  body{padding:18px}
+  .app{border-radius:26px;box-shadow:0 20px 50px rgba(0,0,0,.35);min-height:calc(100vh - 36px)}
+}
+</style>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon.svg" />
+</head>
+<body>
+<div class="app">
+<header>
+  <div>
+    <h1>🃏 لعبة 187</h1>
+    <div class="sub">بيع وشراء — نسخة 4 لاعبين وفق القواعد التي زودتني بها</div>
+  </div>
+  <div class="badge">الهدف: +312 / -312</div>
+</header>
+
+<section id="setup" class="panel">
+  <div class="mobile-hero">
+    <div class="logo">187</div>
+    <h2>بيع وشراء</h2>
+    <p>لعبة الورق الشعبية — 4 أو 5 لاعبين</p>
+  </div>
+  <h3>إعداد اللاعبين</h3>
+  <div class="row" style="margin-bottom:12px">
+    <label>عدد اللاعبين:
+      <select id="playerCount" onchange="togglePlayer5()">
+        <option value="4" selected>4 لاعبين</option>
+        <option value="5">5 لاعبين</option>
+      </select>
+    </label>
+  </div>
+  <div class="grid">
+    <input id="p0" value="اللاعب 1">
+    <input id="p1" value="اللاعب 2">
+    <input id="p2" value="اللاعب 3">
+    <input id="p3" value="اللاعب 4">
+    <input id="p4" value="اللاعب 5" class="hidden">
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button class="primary" onclick="startMatch()">ابدأ المباراة</button>
+    <button onclick="showRules()">القواعد المختصرة</button>
+  </div>
+</section>
+
+<section id="game" class="hidden">
+  <div class="panel">
+    <div class="players-scroll" id="players"></div>
+  </div>
+
+  <div class="panel">
+    <div class="kpis">
+      <div class="kpi"><div class="small">الموزع</div><b id="dealerLabel"></b></div>
+      <div class="kpi"><div class="small">المشتري</div><b id="buyerLabel">—</b></div>
+      <div class="kpi"><div class="small">السوم</div><b id="bidLabel">—</b></div>
+      <div class="kpi"><div class="small">الحكم</div><b id="trumpLabel">—</b></div>
+      <div class="kpi"><div class="small">المرحلة</div><b id="phaseLabel"></b></div>
+    </div>
+  </div>
+
+  <div class="panel table">
+    <h3 class="center">الميدان</h3>
+    <div id="field" class="cards center"></div>
+    <div id="trick" class="trick"></div>
+    <div id="status" class="notice center"></div>
+  </div>
+
+  <div id="auctionPanel" class="panel hidden">
+    <h3>المزايدة</h3>
+    <div class="row">
+      <input id="bidInput" type="number" min="87" max="187" value="87" />
+    </div>
+    <div class="auction-quick" style="margin-top:10px">
+      <button class="primary" onclick="placeBid()">رفع السوم</button>
+      <button onclick="passBid()">انسحاب</button>
+    </div>
+    <div class="small" style="margin-top:8px">تبدأ من 87. بعد 87 أقل رفع إلى 90، ثم الرفع الأدنى 5. عند 140 تُكشف أوراق الميدان.</div>
+  </div>
+
+  <div id="discardPanel" class="panel hidden">
+    <h3 id="discardTitle">المشتري: اختر الأوراق التي ستتوزع على الخصوم</h3>
+    <div id="discardHelp" class="small"></div>
+    <div class="row" style="margin-top:10px"><button id="discardBtn" class="primary" onclick="confirmDiscard()">توزيع الأوراق</button></div>
+  </div>
+
+  <div id="trumpPanel" class="panel hidden">
+    <h3>اختر الحكم</h3>
+    <div class="row">
+      <button onclick="setTrump('D')">♦ ديمن</button>
+      <button onclick="setTrump('H')">♥ شيريا</button>
+      <button onclick="setTrump('S')">♠ سبيد</button>
+      <button onclick="setTrump('C')">♣ كلوب</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3 id="handTitle">يد اللاعب</h3>
+    <div id="hand" class="cards"></div>
+  </div>
+
+  <div id="resultPanel" class="panel hidden">
+    <h3>نتيجة الجولة</h3>
+    <div id="roundResult"></div>
+    <div id="fullLossChoice" class="hidden">
+      <hr>
+      <p>المشتري خسر. هل يريد تسجيل الخسارة الكاملة <b>-187</b> وإلغاء نقاط الخصوم لهذه الجولة؟</p>
+      <div class="row">
+        <button class="danger" onclick="finalizeRound(true)">نعم، سجل -187</button>
+        <button onclick="finalizeRound(false)">لا، سجل خسارة السوم</button>
+      </div>
+    </div>
+    <button id="nextRoundBtn" class="primary hidden" onclick="nextRound()">الجولة التالية</button>
+  </div>
+
+  <div class="panel">
+    <h3>سجل المباراة</h3>
+    <div id="log" class="log"></div>
+  </div>
+</section>
+
+<div id="rules" class="panel hidden">
+  <h2>القواعد المعتمدة في هذه النسخة</h2>
+  <div class="small" style="line-height:1.9">
+    40 ورقة: 2، 6، 7، 8، 9، 10، ولد، بنت، شايب، آكة من الأنواع الأربعة.
+    عند 4 لاعبين: 9 أوراق لكل لاعب و4 في الميدان. عند 5 لاعبين: 7 أوراق لكل لاعب و5 في الميدان.
+    المزايدة من 87 حتى حد 187، وتنكشف أوراق الميدان عند 140.
+    المشتري يأخذ أوراق الميدان ثم يعيد ورقة مخفية لكل خصم: 3 أوراق عند 4 لاعبين و4 أوراق عند 5 لاعبين، وبعدها يحدد الحكم.
+    ترتيب القوة داخل النوع: 2 ثم A ثم K ثم 10 ثم Q ثم J ثم 9 ثم 8 ثم 7 ثم 6.
+    النقاط: A=11، 10=10، K/Q/J=4، كل 2=10، و2 الشيريا=25، والباقي صفر.
+    يجب اتباع النوع إذا كان موجودًا. إذا لم يوجد النوع، يجوز اللعب بالحكم لكسب اللفة أو رمي ورقة غير الحكم.
+    المشتري يلعب وحده ضد الثلاثة. إذا جمع الخصوم أكثر من (187 - السوم) يخسر المشتري.
+    عند نجاحه يسجل كل لاعب ما جمعه. عند خسارة المشتري يسجل عليه السوم بالسالب والخصوم يسجلون ما جمعوه،
+    أو يستطيع اختيار -187 كاملة مقابل صفر للخصوم في تلك الجولة. تنتهي المباراة عند وصول لاعب إلى +312 أو -312.
+  </div>
+</div>
+</div>
+
+<script>
+const SUITS = {
+  D:{name:'ديمن',sym:'♦',red:true},
+  H:{name:'شيريا',sym:'♥',red:true},
+  S:{name:'سبيد',sym:'♠',red:false},
+  C:{name:'كلوب',sym:'♣',red:false}
+};
+const RANKS = ['2','A','K','10','Q','J','9','8','7','6'];
+const POWER = {'2':10,'A':9,'K':8,'10':7,'Q':6,'J':5,'9':4,'8':3,'7':2,'6':1};
+const BASE_POINTS = {'2':10,'A':11,'K':4,'10':10,'Q':4,'J':4,'9':0,'8':0,'7':0,'6':0};
+
+let G = null;
+
+function makeDeck(){
+  const d=[];
+  Object.keys(SUITS).forEach(s=>RANKS.forEach(r=>d.push({s,r,id:s+r})));
+  return d;
+}
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+  return a;
+}
+function pts(c){ return c.r==='2' && c.s==='H' ? 25 : BASE_POINTS[c.r]; }
+function cardHTML(c, clickable=false, hidden=false){
+  if(hidden) return `<div class="card back"></div>`;
+  const su=SUITS[c.s];
+  return `<div class="card ${su.red?'red':''}" ${clickable?`onclick="cardClick('${c.id}')"`:''} data-id="${c.id}">
+    <div class="rank">${c.r}</div><div class="suit">${su.sym}</div><div class="small">${su.name}</div>
+  </div>`;
+}
+function log(msg){document.getElementById('log').innerHTML = `<div>${msg}</div>` + document.getElementById('log').innerHTML;}
+function phaseName(){
+  return ({auction:'المزايدة',discard:'اختيار 3 أوراق',trump:'اختيار الحكم',play:'اللعب',result:'النتيجة'})[G.phase]||'';
+}
+function togglePlayer5(){
+  const n=parseInt(document.getElementById('playerCount').value,10);
+  document.getElementById('p4').classList.toggle('hidden',n!==5);
+}
+function scrollToId(id){
+  const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function showRulesSheet(){
+  const src=document.querySelector('#rules .small');
+  document.getElementById('rulesSheetContent').innerHTML=src?src.innerHTML:'';
+  document.getElementById('rulesSheet').classList.remove('hidden');
+}
+function hideRulesSheet(){document.getElementById('rulesSheet').classList.add('hidden');}
+
+function startMatch(){
+  const count=parseInt(document.getElementById('playerCount').value,10);
+  const names=Array.from({length:count},(_,i)=>document.getElementById('p'+i).value.trim()||`اللاعب ${i+1}`);
+  G={playerCount:count,players:names.map(n=>({name:n,score:0,hand:[],won:[],passed:false})),dealer:0,round:1,phase:'auction',
+     field:[],fieldRevealed:false,currentBid:null,bidder:null,turn:1,activeBidders:Array.from({length:count},(_,i)=>i),
+     buyer:null,trump:null,trick:[],leadSuit:null,selected:[],pendingResult:null,ended:false};
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('game').classList.remove('hidden');
+  document.getElementById('mobileNav').classList.remove('hidden');
+  dealRound();
+}
+function dealRound(){
+  const deck=shuffle(makeDeck());
+  G.players.forEach(p=>{p.hand=[];p.won=[];p.passed=false});
+  G.field=[]; G.fieldRevealed=false; G.currentBid=null; G.bidder=null; G.buyer=null; G.trump=null;
+  G.trick=[]; G.leadSuit=null; G.selected=[]; G.pendingResult=null; G.phase='auction';
+  G.activeBidders=Array.from({length:G.playerCount},(_,i)=>i);
+  let idx=0;
+  const handSize=G.playerCount===4?9:7;
+  for(let r=0;r<handSize;r++) for(let p=0;p<G.playerCount;p++) G.players[p].hand.push(deck[idx++]);
+  while(idx<40) G.field.push(deck[idx++]);
+  G.turn=(G.dealer+1)%G.playerCount;
+  log(`الجولة ${G.round}: الموزع ${G.players[G.dealer].name}. تبدأ المزايدة من ${G.players[G.turn].name}.`);
+  render();
+}
+function minNextBid(){
+  if(G.currentBid===null) return 87;
+  if(G.currentBid===87) return 90;
+  return Math.min(187,G.currentBid+5);
+}
+function placeBid(){
+  if(G.phase!=='auction') return;
+  const v=parseInt(document.getElementById('bidInput').value,10);
+  const min=minNextBid();
+  if(!Number.isFinite(v)||v<min||v>187){alert(`أقل سوم مسموح الآن ${min}، والحد الأعلى 187`);return}
+  G.currentBid=v; G.bidder=G.turn;
+  log(`${G.players[G.turn].name} ساوم بـ ${v}.`);
+  if(v>=140 && !G.fieldRevealed){G.fieldRevealed=true;log('وصل السوم إلى 140: تم كشف أوراق الميدان.');}
+  if(v===187){ finishAuction(); return; }
+  advanceAuctionTurn();
+}
+function passBid(){
+  if(G.phase!=='auction')return;
+  if(G.currentBid===null && G.activeBidders.length===G.playerCount){
+    G.players[G.turn].passed=true;
+    G.activeBidders=G.activeBidders.filter(x=>x!==G.turn);
+    log(`${G.players[G.turn].name} انسحب من المزايدة.`);
+  } else {
+    G.players[G.turn].passed=true;
+    G.activeBidders=G.activeBidders.filter(x=>x!==G.turn);
+    log(`${G.players[G.turn].name} انسحب من المزايدة.`);
+  }
+  if(G.activeBidders.length===1){
+    if(G.bidder===null){
+      // إذا انسحب ثلاثة دون مزايدة، نفرض على الباقي 87
+      G.bidder=G.activeBidders[0]; G.currentBid=87;
+    }
+    finishAuction();
+  } else advanceAuctionTurn();
+}
+function advanceAuctionTurn(){
+  let n=G.turn;
+  for(let i=0;i<G.playerCount;i++){n=(n+1)%G.playerCount;if(G.activeBidders.includes(n)){G.turn=n;break}}
+  render();
+}
+function finishAuction(){
+  if(G.bidder===null){alert('لا يوجد مشتري بعد');return}
+  G.buyer=G.bidder; G.turn=G.buyer; G.phase='discard';
+  G.players[G.buyer].hand.push(...G.field);
+  G.field=[];
+  log(`${G.players[G.buyer].name} اشترى بـ ${G.currentBid} وأخذ أوراق الميدان.`);
+  render();
+}
+function cardClick(id){
+  if(G.phase==='discard'){
+    const i=G.selected.indexOf(id);
+    if(i>=0) G.selected.splice(i,1);
+    else if(G.selected.length<(G.playerCount-1)) G.selected.push(id);
+    render(); return;
+  }
+  if(G.phase==='play') playCard(id);
+}
+function confirmDiscard(){
+  const need=G.playerCount-1;
+  if(G.selected.length!==need){alert(`اختر ${need} أوراق بالضبط`);return}
+  const b=G.players[G.buyer];
+  const selectedCards=G.selected.map(id=>b.hand.find(c=>c.id===id));
+  b.hand=b.hand.filter(c=>!G.selected.includes(c.id));
+  const opp=Array.from({length:G.playerCount},(_,i)=>i).filter(i=>i!==G.buyer);
+  opp.forEach((p,i)=>G.players[p].hand.push(selectedCards[i]));
+  log(`${G.players[G.buyer].name} أعاد ${G.playerCount-1} أوراق مخفية، ورقة لكل خصم.`);
+  G.selected=[]; G.phase='trump';
+  render();
+}
+function setTrump(s){
+  G.trump=s; G.phase='play'; G.turn=G.buyer; G.trick=[]; G.leadSuit=null;
+  log(`${G.players[G.buyer].name} اختار الحكم: ${SUITS[s].name} ${SUITS[s].sym}.`);
+  render();
+}
+function legalCard(playerIndex, card){
+  if(G.trick.length===0) return true;
+  const hand=G.players[playerIndex].hand;
+  const hasLead=hand.some(c=>c.s===G.leadSuit);
+  if(hasLead) return card.s===G.leadSuit;
+  // إذا انقطع النوع، يجوز الحكم أو أي ورقة غير الحكم؛ أي ورقة عمليًا قانونية.
+  return true;
+}
+function playCard(id){
+  const p=G.players[G.turn];
+  const c=p.hand.find(x=>x.id===id); if(!c)return;
+  if(!legalCard(G.turn,c)){alert(`لديك من نوع ${SUITS[G.leadSuit].name} ويجب اتباع النوع.`);return}
+  p.hand=p.hand.filter(x=>x.id!==id);
+  if(G.trick.length===0) G.leadSuit=c.s;
+  G.trick.push({player:G.turn,card:c});
+  log(`${p.name} لعب ${c.r}${SUITS[c.s].sym}.`);
+  if(G.trick.length===G.playerCount){
+    const w=trickWinner();
+    const cards=G.trick.map(x=>x.card);
+    G.players[w].won.push(...cards);
+    const trickPts=cards.reduce((a,c)=>a+pts(c),0);
+    log(`${G.players[w].name} أخذ اللفة (${trickPts} نقطة).`);
+    G.turn=w; G.trick=[]; G.leadSuit=null;
+    if(G.players.every(x=>x.hand.length===0)){ finishPlay(); return; }
+  } else G.turn=(G.turn+1)%G.playerCount;
+  render();
+}
+function trickWinner(){
+  const tr=G.trick;
+  const trumpCards=tr.filter(x=>x.card.s===G.trump);
+  const pool=trumpCards.length?trumpCards:tr.filter(x=>x.card.s===G.leadSuit);
+  return pool.slice().sort((a,b)=>POWER[b.card.r]-POWER[a.card.r])[0].player;
+}
+function finishPlay(){
+  G.phase='result';
+  const totals=G.players.map(p=>p.won.reduce((a,c)=>a+pts(c),0));
+  const opp=Array.from({length:G.playerCount},(_,i)=>i).filter(i=>i!==G.buyer);
+  const oppTotal=opp.reduce((a,i)=>a+totals[i],0);
+  const limit=187-G.currentBid;
+  const buyerLost=oppTotal>=limit+1;
+  G.pendingResult={totals,oppTotal,limit,buyerLost};
+  if(buyerLost){
+    log(`خسر المشتري: الخصوم جمعوا ${oppTotal}، وحد الخسارة يبدأ من ${limit+1}.`);
+  }else{
+    totals.forEach((v,i)=>G.players[i].score+=v);
+    log(`نجح المشتري. سُجل لكل لاعب ما جمعه فعليًا.`);
+  }
+  render();
+}
+function finalizeRound(full187){
+  const r=G.pendingResult;if(!r||!r.buyerLost)return;
+  if(full187){
+    G.players[G.buyer].score-=187;
+    log(`${G.players[G.buyer].name} اختار الخسارة الكاملة -187؛ نقاط الخصوم لهذه الجولة = 0.`);
+  }else{
+    G.players[G.buyer].score-=G.currentBid;
+    Array.from({length:G.playerCount},(_,i)=>i).filter(i=>i!==G.buyer).forEach(i=>G.players[i].score+=r.totals[i]);
+    log(`سُجل على المشتري -${G.currentBid}، وسُجل لكل خصم ما جمعه.`);
+  }
+  G.pendingResult.finalized=true;
+  render();
+}
+function nextRound(){
+  const winner=G.players.find(p=>p.score>=312 || p.score<=-312);
+  if(winner){G.ended=true;alert(`انتهت المباراة: ${winner.name} وصل إلى ${winner.score}`);render();return}
+  G.round++;G.dealer=(G.dealer+1)%G.playerCount;dealRound();
+}
+function render(){
+  if(!G)return;
+  document.getElementById('players').innerHTML=G.players.map((p,i)=>`
+    <div class="player ${i===G.turn?'active':''} ${i===G.buyer?'buyer':''}">
+      <b>${p.name}</b><div class="score ${p.score<0?'badtxt':'goodtxt'}">${p.score>0?'+':''}${p.score}</div>
+      <div class="small">في اليد: ${p.hand.length} | مجموع ما كسبه: ${p.won.reduce((a,c)=>a+pts(c),0)}</div>
+    </div>`).join('');
+  document.getElementById('dealerLabel').textContent=G.players[G.dealer].name;
+  document.getElementById('buyerLabel').textContent=G.buyer===null?'—':G.players[G.buyer].name;
+  document.getElementById('bidLabel').textContent=G.currentBid??'—';
+  document.getElementById('trumpLabel').textContent=G.trump?`${SUITS[G.trump].name} ${SUITS[G.trump].sym}`:'—';
+  document.getElementById('phaseLabel').textContent=phaseName();
+
+  const field=document.getElementById('field');
+  if(G.phase==='auction'){
+    field.innerHTML=G.field.map(c=>cardHTML(c,false,!G.fieldRevealed)).join('');
+  } else field.innerHTML='';
+
+  document.getElementById('trick').innerHTML=G.trick.map(x=>`<div><div class="small">${G.players[x.player].name}</div>${cardHTML(x.card)}</div>`).join('');
+  let status='';
+  if(G.phase==='auction') status=`الدور على ${G.players[G.turn].name} للمزايدة. أقل سوم الآن: ${minNextBid()}`;
+  if(G.phase==='discard') status=`${G.players[G.buyer].name}: لديك ${G.players[G.buyer].hand.length} ورقة، اختر ${G.playerCount-1} لإرجاعها للخصوم.`;
+  if(G.phase==='trump') status=`${G.players[G.buyer].name}: اختر الحكم.`;
+  if(G.phase==='play') status=`الدور على ${G.players[G.turn].name}${G.leadSuit?` — النوع المطلوب: ${SUITS[G.leadSuit].name}`:''}`;
+  if(G.phase==='result') status='انتهت الجولة.';
+  document.getElementById('status').textContent=status;
+
+  document.getElementById('auctionPanel').classList.toggle('hidden',G.phase!=='auction');
+  document.getElementById('discardPanel').classList.toggle('hidden',G.phase!=='discard');
+  document.getElementById('trumpPanel').classList.toggle('hidden',G.phase!=='trump');
+  document.getElementById('resultPanel').classList.toggle('hidden',G.phase!=='result');
+
+  if(G.phase==='discard'){
+    const need=G.playerCount-1;
+    document.getElementById('discardTitle').textContent=`المشتري: اختر ${need} أوراق لإرجاعها للخصوم`;
+    document.getElementById('discardHelp').textContent=`اختر ${need} أوراق من يدك، ثم تتوزع ورقة مخفية لكل خصم.`;
+    document.getElementById('discardBtn').textContent=`توزيع ${need} أوراق`;
+  }
+
+  if(G.phase==='auction') document.getElementById('bidInput').value=minNextBid();
+
+  const hand=document.getElementById('hand'), title=document.getElementById('handTitle');
+  const idx=(G.phase==='discard'||G.phase==='trump')?G.buyer:G.turn;
+  title.textContent=`يد ${G.players[idx].name}`;
+  hand.innerHTML=G.players[idx].hand.map(c=>{
+    const raw=cardHTML(c,true,false);
+    return G.selected.includes(c.id)?raw.replace('class="card ','class="card selected '):raw.replace('class="card"','class="card selected"');
+  }).join('');
+
+  if(G.phase==='result'){
+    const r=G.pendingResult;
+    document.getElementById('roundResult').innerHTML=`
+      <div class="grid">
+        ${G.players.map((p,i)=>`<div class="kpi"><div class="small">${p.name}</div><b>${r.totals[i]} نقطة أوراق</b></div>`).join('')}
+      </div>
+      <p>مجموع الخصوم: <b>${r.oppTotal}</b> — حد السماح: <b>${r.limit}</b> — الخسارة تبدأ من <b>${r.limit+1}</b>.</p>
+      <p class="${r.buyerLost?'badtxt':'goodtxt'}"><b>${r.buyerLost?'المشتري خسر الجولة':'المشتري نجح في الجولة'}</b></p>`;
+    const full=document.getElementById('fullLossChoice'), next=document.getElementById('nextRoundBtn');
+    if(r.buyerLost && !r.finalized){full.classList.remove('hidden');next.classList.add('hidden')}
+    else {full.classList.add('hidden');next.classList.remove('hidden')}
+  }
+}
+function showRules(){document.getElementById('rules').classList.toggle('hidden')}
+</script>
+
+<div id="mobileNav" class="mobile-actions hidden">
+  <button id="navGame" class="active" onclick="scrollToId('game')"><span>🎮</span>اللعب</button>
+  <button onclick="scrollToId('players')"><span>👥</span>اللاعبون</button>
+  <button onclick="scrollToId('log')"><span>📜</span>السجل</button>
+  <button onclick="showRulesSheet()"><span>📖</span>القواعد</button>
+</div>
+<div id="rulesSheet" class="modal-sheet hidden" onclick="if(event.target.id==='rulesSheet')hideRulesSheet()">
+  <div class="sheet">
+    <div class="sheet-grab"></div>
+    <div class="section-title"><h3>قواعد لعبة 187</h3><button onclick="hideRulesSheet()">إغلاق</button></div>
+    <div id="rulesSheetContent" class="small" style="line-height:1.9"></div>
+  </div>
+</div>
+
+</body></html>

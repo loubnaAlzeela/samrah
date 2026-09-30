@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEV-ONLY: allows plain ws:// (cleartext) connections everywhere. Android
+  9+ blocks cleartext by default in release builds; without this the app
+  installs fine but every connection attempt is silently dropped.
+
+  Scoped to specific IPs is more correct, but the dev machine's LAN IP
+  changes across reboots/networks — a blanket allow avoids editing this
+  file (and rebuilding) every session. MUST be replaced with a scoped
+  domain-config (or removed entirely) once the server sits behind wss://
+  (TLS) for real users — never ship base-config cleartext to production.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

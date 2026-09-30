@@ -1,0 +1,198 @@
+/* ==========================================================================
+   LAMMA | لَمّة — Design tokens — Direction 1 «ديوانية» (APPROVED)
+   Mockup: design/directions.html (section .d1). Spec: design/card-spec.md
+   Fonts (Google Fonts, both ship an Arabic subset U+0600-06FF — verified):
+   https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&family=Reem+Kufi:wght@500;700&display=swap
+
+   DEFAULT THEME = DARK («سهرة»). Why:
+   1. The product is played in evening sessions (majlis / diwaniya nights);
+      a dark shell cuts glare during long games.
+   2. Cream cards on a wine table read best against a dark surround —
+      the cards are the brightest thing on screen, so the eye goes to them.
+   3. The identity (wine + brass + cream) is only distinctive in dark.
+   LIGHT («نهار») is a user setting and also follows the OS only if the user
+   picks "system". The table stays wine and the cards stay cream in BOTH
+   themes — they are physical objects; only the app chrome changes.
+
+   Contrast (WCAG 2.x, computed, not eyeballed) is noted next to each pair.
+   ========================================================================== */
+
+:root {
+  /* ---- Typography ---- */
+  --font-display: 'Reem Kufi', 'Readex Pro', sans-serif; /* logo, screen titles, game names. MIN 18px (weak below that) */
+  --font-ui: 'Readex Pro', system-ui, sans-serif;         /* all UI text. MIN 12px */
+  --font-rank: 'Readex Pro', system-ui, sans-serif;       /* card ranks + scores, weight 700 */
+
+  --text-xs: 12px;     /* captions, seat meta — minimum size */
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-base: 16px;   /* body + inputs (no iOS zoom) */
+  --text-lg: 17px;     /* buttons */
+  --text-xl: 20px;     /* display: game names */
+  --text-score: 24px;  /* team scores */
+  --text-2xl: 28px;    /* display: screen title */
+  --text-logo: 30px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --leading-ui: 1.5;
+  --leading-display: 1.3;
+  /* Western digits everywhere (owner decision). See card-spec.md §0. */
+  --numeric: lining-nums tabular-nums;
+
+  /* ---- Spacing (4pt) ---- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+
+  /* ---- Radius ---- */
+  --radius-card: 12%;     /* of card width → use calc(var(--cw) * .12) */
+  --radius-sm: 7px;       /* suit chip */
+  --radius-md: 12px;      /* trump chip, target pill */
+  --radius-lg: 14px;      /* icon buttons, inputs, turn banner */
+  --radius-xl: 16px;      /* primary button */
+  --radius-tile: 18px;    /* game tiles */
+  --radius-table: 30px;
+  --radius-pill: 999px;
+
+  /* ---- Sizing ---- */
+  --touch-min: 44px;
+  --btn-h: 54px;
+  --input-h: 52px;
+  --avatar: 46px;
+  --topbar-h: 60px;
+  --bottomnav-h: 56px;   /* + env(safe-area-inset-bottom) */
+
+  /* ---- Motion ---- */
+  --dur-fast: 150ms;     /* press / select */
+  --dur-base: 250ms;     /* card → table */
+  --dur-pile: 420ms;     /* trick sweeps into the pile («اللمّة تتكوّم») */
+  --dur-bump: 180ms;     /* pile counter bump */
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+
+  /* ---- Z-index ---- */
+  --z-table: 0; --z-pile: 5; --z-trick: 10; --z-hand: 20; --z-banner: 30;
+  --z-sheet: 40; --z-modal: 100; --z-toast: 1000;
+
+  /* ---- Theme-independent: table + cards (physical objects) ---- */
+  --table-center: #7A2A36;
+  --table-mid: #5B1C27;
+  --table-edge: #3E1219;
+  --table-bg: radial-gradient(ellipse at 50% 40%, var(--table-center) 0%, var(--table-mid) 55%, var(--table-edge) 100%);
+  --table-rim: #8F8272;               /* v2 neutral warm-grey bevel, 3.4:1 vs #5B1C27 */
+  --table-shadow: inset 0 0 0 3px var(--table-rim), inset 0 0 0 7px var(--table-edge), inset 0 0 40px rgba(0,0,0,.5);
+  --on-table: #F5EBDD;                /* names: 8.1:1 on center, 10.9:1 on mid */
+  --on-table-muted: #E4D3BC;          /* seat meta / pile count: 6.5:1 on center */
+  --on-table-accent: #E3A93F;         /* 4.5:1 on center, 6.1:1 on mid */
+  --slot-line: rgba(245, 235, 221, .45);
+
+  --card-face: #FBF4E6;
+  --card-edge: #E3D3B4;
+  --card-inner-rule: #E6D2A8;         /* thin frame on large face cards */
+  --card-back: #6E1A28;
+  --card-back-rim: #FBF4E6;           /* 3px cream border */
+  --card-back-lattice: rgba(201, 162, 78, .35);
+  --card-back-star: #C9A24E;
+  --card-veil: rgba(26, 18, 16, .40); /* non-playable: dimmed red rank still 3.8:1, black 6.4:1 (rank = 19px bold → large text) */
+
+  --suit-hearts:   #B3261E;  /* قلب ♥  — 6.0:1 on card */
+  --suit-diamonds: #B3261E;  /* ديناري ♦ — 6.0:1 */
+  --suit-spades:   #1F1A17;  /* بستوني ♠ — 15.8:1 */
+  --suit-clubs:    #1F1A17;  /* سباتي ♣ — 15.8:1 */
+
+  --shadow-card-hand: -2px 0 6px rgba(0, 0, 0, .18);
+  --shadow-card-table: 0 4px 10px rgba(0, 0, 0, .28);
+  --shadow-card-selected: 0 10px 18px -6px rgba(0, 0, 0, .45);
+}
+
+/* ============================ DARK (default) ============================ */
+/* v2 (owner feedback "خفف من الأصفر"): brass is an ACCENT, not a base colour.
+   Brass is allowed ONLY for: (1) the single primary button per screen,
+   (2) the active-turn ring / timer, (3) key score numbers (target, winning team).
+   Everything else — secondary buttons, borders, titles, tags, selected segments — is neutral. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #17110F;            /* espresso */
+  --color-surface: #221A17;       /* cards, rows, panels */
+  --color-surface-2: #2C231F;     /* neutral (secondary) buttons, segmented track */
+  --color-surface-3: #362B26;     /* pressed / hover */
+  --color-scorebox: #0F0B0A;      /* score box cells */
+  --color-line: #3D322C;          /* decorative dividers only */
+  --color-field-border: #7A6858;  /* inputs + control outlines: 3.2:1 on surface, 3.5:1 on bg */
+  --color-text: #F2E9DC;          /* 15.5:1 bg · 14.2 surface · 12.8 surface-2 */
+  --color-text-muted: #B9AC9A;    /* 8.4:1 bg · 7.7 surface · 6.9 surface-2 */
+  --color-icon: #8F8272;          /* non-text icons: 4.6:1 surface · 4.1 surface-2 */
+  --color-selected-bg: #F2E9DC;   /* selected segment / chosen option = cream, NOT brass */
+  --color-on-selected: #1A1210;   /* 15.4:1 */
+  --color-disabled-text: #6E6258; /* disabled numbers (2.6:1 — exempt, always paired with disabled attr) */
+  --color-status-open: #7FBF8E;   /* "لعبة جديدة" has seats: 7.9:1 on surface (text + dot) */
+
+  --color-accent: #E3A93F;        /* brass — primary button, turn ring, key scores ONLY */
+  --color-on-accent: #1A1210;     /* 8.8:1 on brass; NEVER cream text on brass (1.8:1) */
+  --color-primary-grad: linear-gradient(180deg, #EDB955, #D89A2E);
+  --color-primary-glow: 0 6px 18px -8px rgba(227, 169, 63, .45);
+  --color-accent-text: #E3A93F;   /* 8.9:1 on bg — score highlight only */
+  --color-turn-ring: #E3A93F;
+
+  --color-pill-bg: #17110F;       /* name capsule under avatars */
+  --color-pill-border: #8F8272;   /* 3.4:1 vs table mid */
+  --color-avatar-bg: #3A2F29;
+  --color-avatar-ring: #8F8272;   /* idle seat ring (neutral) */
+  --color-online: #2FB36B;
+  --color-focus: #F2E9DC;         /* focus ring cream (brass reserved) */
+  --color-scrim: rgba(0, 0, 0, .6);
+  --color-panel: rgba(23, 17, 15, .94);  /* bidding / room menu panel on the table: text 14.7:1 */
+  --color-disabled-opacity: .5;
+  --shadow-raised: 0 8px 20px -10px rgba(0, 0, 0, .6);
+  --shadow-panel: 0 12px 30px -8px rgba(0, 0, 0, .7);
+}
+
+/* ================================ LIGHT ================================= */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #F6EEE1; --color-surface: #FFFAF1; --color-surface-2: #EFE3D0; --color-surface-3: #E6D8C2;
+  --color-scorebox: #2A1C16;
+  --color-line: #E2D3BC;
+  --color-field-border: #8C7864;  /* 4.1:1 on surface */
+  --color-text: #2A1C16;          /* 14.3:1 */
+  --color-text-muted: #6E5B4B;    /* 5.6:1 */
+  --color-icon: #6E5B4B;
+  --color-selected-bg: #2A1C16; --color-on-selected: #F6EEE1;
+  --color-disabled-text: #A89A88;
+  --color-status-open: #2E6B3F;
+  --color-accent: #E3A93F;        /* fill only */
+  --color-on-accent: #1A1210;
+  --color-primary-grad: linear-gradient(180deg, #EDB955, #D89A2E);
+  --color-primary-glow: 0 6px 16px -8px rgba(138, 90, 18, .4);
+  --color-accent-text: #8A5A12;   /* 5.1:1 */
+  --color-turn-ring: #C98A1E;
+  --color-pill-bg: #2A1C16; --color-pill-border: #2A1C16;
+  --color-avatar-bg: #EFE3D0; --color-avatar-ring: #8C7864;
+  --color-focus: #2A1C16;
+  --color-scrim: rgba(42, 28, 22, .45);
+  --color-panel: rgba(23, 17, 15, .94);   /* panels sit on the wine table in both themes */
+  --color-disabled-opacity: .5;
+  --shadow-raised: 0 1px 2px rgba(42, 28, 22, .08), 0 6px 16px -8px rgba(42, 28, 22, .18);
+  --shadow-panel: 0 12px 30px -8px rgba(0, 0, 0, .45);
+}
+/* "System": follow the OS only when the user opted in — copy the LIGHT block
+   into @media (prefers-color-scheme: light) { :root[data-theme="system"] { ... } } */
+
+/* Optional accessibility setting: 4-colour deck. <html data-deck="4"> */
+:root[data-deck="4"] {
+  --suit-hearts: #B3261E;    /* red   6.0:1 */
+  --suit-diamonds: #1F4E8C;  /* blue  7.6:1 */
+  --suit-spades: #1F1A17;    /* black */
+  --suit-clubs: #2E6B3F;     /* green 5.8:1 */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-pile: 0ms; --dur-bump: 0ms; }
+}
+
+/* Base helpers the app should apply globally */
+html { font-family: var(--font-ui); }
+.num, [data-num] { font-variant-numeric: var(--numeric); font-feature-settings: "lnum" 1, "tnum" 1; }

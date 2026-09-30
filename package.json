@@ -1,0 +1,17 @@
+{
+  "name": "lamma",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "test": "npm -w @lamma/rules run test",
+    "typecheck": "npm -w @lamma/rules run typecheck && npm -w @lamma/server run typecheck && npm -w @lamma/web run typecheck",
+    "dev:server": "npm -w @lamma/server run dev",
+    "dev:web": "npm -w @lamma/web run dev",
+    "e2e": "tsx scripts/e2e.mts"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "tsx": "^4.23.15"
+  }
+}

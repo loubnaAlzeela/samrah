@@ -1,0 +1,192 @@
+/* ==========================================================================
+   LAMMA | لَمّة — Design tokens — Direction 3 «دفتر» (Ink & Paper)
+   Source of truth for the programmer. Mockup: design/directions.html (.d3)
+   Load fonts (Google Fonts):
+   https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap
+   Theme: light by default; dark follows the OS unless [data-theme] is set on <html>.
+   ========================================================================== */
+
+:root {
+  /* ---- Typography ---- */
+  --font-display: 'Aref Ruqaa', 'Amiri', serif;             /* logo, screen titles, game names, scoresheet numbers. Never below 18px. */
+  --font-ui: 'IBM Plex Sans Arabic', system-ui, sans-serif;  /* all UI text, buttons, card ranks */
+  --font-rank: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+
+  --text-xs: 12px;    /* meta, captions (minimum) */
+  --text-sm: 13px;
+  --text-md: 15px;    /* secondary body */
+  --text-base: 16px;  /* body, inputs (16px avoids iOS zoom) */
+  --text-lg: 17px;    /* buttons */
+  --text-xl: 24px;    /* display: game names, sheet numbers */
+  --text-2xl: 32px;   /* display: screen title */
+  --text-logo: 34px;  /* header logo; 40px on splash */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+  --leading-ui: 1.5;
+  --leading-display: 1.3;
+
+  /* ---- Spacing (4pt scale) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;   /* screen gutter on mobile */
+  --space-5: 20px;   /* lobby side padding */
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---- Radius ---- */
+  --radius-xs: 5px;     /* playing card at 52-56px width (= card width x 0.1) */
+  --radius-sm: 6px;     /* scoresheet strip */
+  --radius-md: 12px;    /* inputs, chips */
+  --radius-lg: 14px;    /* icon buttons, turn banner */
+  --radius-xl: 16px;    /* primary buttons */
+  --radius-pill: 999px;
+  --radius-table: 50% / 42%;  /* oval table */
+
+  /* ---- Sizing ---- */
+  --touch-min: 44px;        /* every tappable thing */
+  --btn-h: 54px;
+  --input-h: 52px;
+  --avatar: 46px;
+  --topbar-h: 60px;
+  --bottomnav-h: 56px;      /* + env(safe-area-inset-bottom) */
+
+  /* ---- Motion ---- */
+  --dur-fast: 150ms;        /* select / press */
+  --dur-base: 250ms;        /* card flies to table */
+  --dur-slow: 300ms;        /* trick collected to winner */
+  --dur-write: 450ms;       /* scoresheet handwriting reveal */
+  --ease-out: cubic-bezier(.2,.8,.2,1);
+  --ease-in: cubic-bezier(.4,0,1,1);
+
+  /* ---- Z-index ---- */
+  --z-table: 0;
+  --z-trick: 10;
+  --z-hand: 20;
+  --z-banner: 30;
+  --z-sheet: 40;
+  --z-modal: 100;
+  --z-toast: 1000;
+}
+
+/* ============================ LIGHT (default) ============================ */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #F3EEE3;          /* paper */
+  --color-surface: #FBF8F1;     /* raised paper: inputs, sheet */
+  --color-surface-2: #EAE3D3;   /* table felt, subtle fills */
+  --color-line: #D6CCB8;        /* hairlines, rules */
+  --color-line-strong: #1B1B1B; /* underline of titles, outlined buttons */
+  --color-rule: #E5DCCB;        /* ruled lines inside the scoresheet */
+  --color-text: #1B1B1B;        /* ink — 15:1 on bg */
+  --color-text-muted: #655E54;  /* 5.4:1 on bg */
+  --color-text-struck: #8C8474; /* crossed-out old scores (decorative, paired with strike) */
+  --color-accent: #C23B22;      /* vermilion seal — 4.6:1 on bg, 5.2:1 on card */
+  --color-on-accent: #FFFFFF;
+  --color-pencil: #2B4C7E;      /* opponents' numbers on the sheet — 7.4:1 */
+  --color-primary-bg: #1B1B1B;  /* primary button = ink */
+  --color-on-primary: #FBF8F1;
+  --color-success: #2F7D4F;
+  --color-online: #2FB36B;      /* dot only, never text */
+  --color-focus: #C23B22;
+  --color-veil: rgba(243, 238, 227, .50);   /* dims non-playable cards */
+  --color-scrim: rgba(27, 27, 27, .48);     /* behind bottom sheets */
+  --color-slot: rgba(27, 27, 27, .35);      /* dashed "your card" slot */
+
+  /* Cards stay paper-coloured in both themes (they are physical objects) */
+  --card-face: #FFFDF8;
+  --card-edge: #C9BFAA;
+  --card-back: #1B1B1B;
+  --card-back-frame: rgba(255, 253, 248, .55);
+  --card-seal: #C23B22;
+  --card-seal-ink: #FFFDF8;
+
+  /* Suits: classic 2-colour deck (default) */
+  --suit-hearts:   #C23B22;  /* كبة */
+  --suit-diamonds: #C23B22;  /* ديناري */
+  --suit-spades:   #1B1B1B;  /* بستوني */
+  --suit-clubs:    #1B1B1B;  /* سباتي */
+
+  /* Shadows (paper-like, low) */
+  --shadow-card-hand: -2px 0 6px rgba(0, 0, 0, .18);
+  --shadow-card-table: 0 4px 10px rgba(0, 0, 0, .22);
+  --shadow-raised: 0 1px 2px rgba(27, 27, 27, .08), 0 4px 12px rgba(27, 27, 27, .06);
+  --shadow-sheet: 0 -8px 24px rgba(27, 27, 27, .12);
+  --table-rim: inset 0 0 0 1px #D6CCB8, inset 0 0 0 8px #EAE3D3, inset 0 0 0 9px #CFC4AE;
+}
+
+/* ================================ DARK ================================== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #151412;          /* ink night */
+    --color-surface: #1F1D1A;
+    --color-surface-2: #2A2723;   /* table */
+    --color-line: #3A362F;
+    --color-line-strong: #EFE9DD;
+    --color-rule: #2F2B26;
+    --color-text: #EFE9DD;        /* 15:1 */
+    --color-text-muted: #A8A092;  /* 7.2:1 */
+    --color-text-struck: #7A7366;
+    --color-accent: #EA7058;      /* lifted vermilion — 6:1 on bg */
+    --color-on-accent: #151412;
+    --color-pencil: #8FB0E0;      /* 8:1 */
+    --color-primary-bg: #EFE9DD;
+    --color-on-primary: #151412;
+    --color-success: #5FBF86;
+    --color-focus: #EA7058;
+    --color-veil: rgba(21, 20, 18, .50);
+    --color-scrim: rgba(0, 0, 0, .60);
+    --color-slot: rgba(239, 233, 221, .35);
+    --card-face: #F4EFE4;         /* slightly dimmed paper to cut glare */
+    --card-edge: #B9AF9B;
+    --card-back: #0C0B0A;
+    --card-back-frame: rgba(244, 239, 228, .45);
+    --card-seal: #C23B22;         /* seal keeps print colour on the card */
+    --suit-hearts: #C23B22;       /* suit ink is printed on the card: unchanged */
+    --suit-diamonds: #C23B22;
+    --suit-spades: #1B1B1B;
+    --suit-clubs: #1B1B1B;
+    --shadow-card-hand: -2px 0 6px rgba(0, 0, 0, .45);
+    --shadow-card-table: 0 4px 12px rgba(0, 0, 0, .55);
+    --shadow-raised: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 12px rgba(0, 0, 0, .35);
+    --shadow-sheet: 0 -8px 24px rgba(0, 0, 0, .5);
+    --table-rim: inset 0 0 0 1px #3A362F, inset 0 0 0 8px #2A2723, inset 0 0 0 9px #4A443B;
+  }
+}
+/* Same dark values when the user forces dark in settings */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #151412; --color-surface: #1F1D1A; --color-surface-2: #2A2723;
+  --color-line: #3A362F; --color-line-strong: #EFE9DD; --color-rule: #2F2B26;
+  --color-text: #EFE9DD; --color-text-muted: #A8A092; --color-text-struck: #7A7366;
+  --color-accent: #EA7058; --color-on-accent: #151412; --color-pencil: #8FB0E0;
+  --color-primary-bg: #EFE9DD; --color-on-primary: #151412; --color-success: #5FBF86;
+  --color-focus: #EA7058; --color-veil: rgba(21, 20, 18, .50); --color-scrim: rgba(0, 0, 0, .60);
+  --color-slot: rgba(239, 233, 221, .35);
+  --card-face: #F4EFE4; --card-edge: #B9AF9B; --card-back: #0C0B0A;
+  --card-back-frame: rgba(244, 239, 228, .45); --card-seal: #C23B22;
+  --suit-hearts: #C23B22; --suit-diamonds: #C23B22; --suit-spades: #1B1B1B; --suit-clubs: #1B1B1B;
+  --shadow-card-hand: -2px 0 6px rgba(0, 0, 0, .45);
+  --shadow-card-table: 0 4px 12px rgba(0, 0, 0, .55);
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 12px rgba(0, 0, 0, .35);
+  --shadow-sheet: 0 -8px 24px rgba(0, 0, 0, .5);
+  --table-rim: inset 0 0 0 1px #3A362F, inset 0 0 0 8px #2A2723, inset 0 0 0 9px #4A443B;
+}
+
+/* Optional accessibility setting: 4-colour deck (colour-blind friendly).
+   Toggle with <html data-deck="4">. Shapes still differ, colour is a second cue. */
+:root[data-deck="4"] {
+  --suit-hearts:   #C23B22;  /* red */
+  --suit-diamonds: #2B4C7E;  /* blue */
+  --suit-spades:   #1B1B1B;  /* black */
+  --suit-clubs:    #2F7D4F;  /* green */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; --dur-write: 0ms; }
+}

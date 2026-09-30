@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "lamma-server", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:server"], "port": 2567 },
+    { "name": "lamma-web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:web"], "port": 5173 }
+  ]
+}
