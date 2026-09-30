@@ -1,5 +1,5 @@
 // Server error codes (the `error` message and create/join failures) as
-// Modern Standard Arabic text. Mirrors apps/web/src/i18n.ts ERRORS.
+// Modern Standard Arabic text.
 const _errors = {
   'notYourTurn': 'ليس دورك',
   'badBid': 'طلب غير صالح',

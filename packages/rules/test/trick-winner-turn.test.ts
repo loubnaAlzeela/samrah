@@ -7,9 +7,9 @@ import { seeded } from './helpers.ts';
 
 function winnerOf(g: AnyGame): number {
   const t = g.trick as { seat: number; card: string }[];
-  if (g.variant === 'baloot') return balootTrickWinner(t as never, (g as { trump: never }).trump);
+  if (g.variant === 'baloot') return balootTrickWinner(t as never, (g as unknown as { trump: never }).trump);
   if (isTrixVariant(g.variant)) return trickWinner(t as never, null);
-  return trickWinner(t as never, (g as { trump: never }).trump);
+  return trickWinner(t as never, (g as unknown as { trump: never }).trump);
 }
 
 describe('trickDone: turn = the trick winner', () => {

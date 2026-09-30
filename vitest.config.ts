@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    environment: 'jsdom',
+    // rules and server run in Node (no browser DOM)
+    environment: 'node',
   },
 });

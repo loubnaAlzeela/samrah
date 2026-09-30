@@ -1,11 +1,10 @@
-# سمرة (Samrah) — mobile client (Slice 1)
+# سمرة (Samrah) — mobile app
 
-Flutter/Android front end for the card-game platform (folder name `lamma`
-is historical; the product name is **سمرة / Samrah**). This app is a **UI
-client only**. The game server (`apps/server`, Colyseus/TypeScript) and the
-game rules (`packages/rules`) are untouched and unmodified — this app talks
-to them over the network exactly as `apps/web` (the React client) already
-does.
+Flutter/Android app for the card-game platform (folder name `lamma` is
+historical; the product name is **سمرة / Samrah**). It is the only client.
+The game rules (`packages/rules`) run on the game server (`apps/server`,
+Colyseus/TypeScript); this app talks to it over the network and only shows
+what the server sends.
 
 Package id: `com.samrah.app`. iOS is deferred (no Mac available); `ios/`
 and `macos/` project files exist because `flutter create` generates them,
@@ -46,8 +45,7 @@ issues* below.)
 `LammaRoom` (`apps/server/src/LammaRoom.ts`) does **not** use
 `@colyseus/schema` — it never calls `this.setState()`. Every message is a
 plain JSON object sent via Colyseus's message channel (`client.send(type,
-payload)` / `room.onMessage(type, cb)`), the same one the React client uses
-in `apps/web/src/net.ts`. So the Flutter side needs no generated schema
+payload)` / `room.onMessage(type, cb)`). So the Flutter side needs no generated schema
 classes — just message-type listeners:
 
 - `create('lamma', options: {variant, name})` → creates a room, returns a

@@ -1,5 +1,4 @@
-// Live gameplay on a fixed 390×793 canvas (scaled to fit the screen, like
-// apps/web Stage.tsx): score diamond + last trick up top, the table with the
+// Live gameplay on a fixed 390×793 canvas (scaled to fit the screen): score diamond + last trick up top, the table with the
 // three other players around it, the trick in the middle, the full-width
 // hand, and my own panel (avatar with turn ring, chat, tricks / bid).
 // Positions are physical (they never mirror with RTL): me at the bottom,

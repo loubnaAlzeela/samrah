@@ -26,7 +26,7 @@ const Map<CardSuit, String> _suitCode = {
   CardSuit.clubs: 'C',
 };
 
-/// Arabic suit names, matching apps/web/src/i18n.ts SUIT_NAME.
+/// Arabic suit names.
 const Map<CardSuit, String> suitNameAr = {
   CardSuit.spades: 'بستوني',
   CardSuit.hearts: 'قلب',
@@ -34,7 +34,7 @@ const Map<CardSuit, String> suitNameAr = {
   CardSuit.clubs: 'سباتي',
 };
 
-/// Display order for the hand (apps/web Hand.tsx `sortForDisplay`): trump
+/// Display order for the hand: trump
 /// suit first once declared, then ♠ ♥ ♣ ♦ (alternating colours), high to low.
 /// [power] replaces the plain rank order inside a suit (Baloot: 10 above K).
 List<String> sortForDisplay(List<String> hand, String? trump, {int Function(String card)? power}) {

@@ -3,8 +3,7 @@
 //
 // LammaRoom (apps/server/src/LammaRoom.ts) never calls Colyseus's schema
 // `setState()` — every message is plain JSON via `client.send`/
-// `room.onMessage`, the same channel the React client (apps/web/src/net.ts)
-// uses. So this layer only needs message-type listeners, no generated
+// `room.onMessage`. So this layer only needs message-type listeners, no generated
 // schema classes.
 //
 // Reconnection: LammaRoom does NOT use Colyseus's built-in
@@ -12,8 +11,8 @@
 // (`RECONNECT_SECONDS`) and lets the same client rejoin by sending its own
 // `token` (from the `welcome` message) back in the `joinById` options. So
 // this layer disables Colyseus's native auto-reconnect
-// (`setReconnectionOptions(enabled: false)`, matching what apps/web/src/net.ts
-// does) and drives its own retry loop instead — same approach, same token.
+// (`setReconnectionOptions(enabled: false)`) and drives its own retry loop
+// instead, with the same token.
 import 'dart:async';
 
 import 'package:colyseus/colyseus.dart';
@@ -83,8 +82,8 @@ class RoomConnection {
     unawaited(_reconnectLoop());
   }
 
-  /// Rejoin with the seat token the server handed us in `welcome`. Mirrors
-  /// apps/web/src/net.ts `reconnectLoop`: retry every 2s for up to 100s
+  /// Rejoin with the seat token the server handed us in `welcome`: retry
+  /// every 2s for up to 100s
   /// (under the server's 90s seat-hold window), then give up.
   Future<void> _reconnectLoop() async {
     status = ConnStatus.reconnecting;
