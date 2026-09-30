@@ -2,8 +2,9 @@
 // a trick gathered, your turn…) and a spoken word for every choice a player
 // makes (a bid, «باس», «صن», «دبل», a Trix contract…), like a dealer calling
 // the table. Effects are WAVs synthesised by tool/make_sounds.py (no recorded
-// samples); speech uses the phone's own Arabic text-to-speech voice, so it
-// needs no audio files and works offline where the voice is installed.
+// samples). Spoken calls are recorded clips in assets/voice (a Saudi voice,
+// tool/make_voice.py, list in docs/voice-lines.md); a call with no clip falls
+// back to the phone's own Arabic text-to-speech voice.
 //
 // Every call is fire-and-forget and never throws: sound is a nicety, a device
 // without audio (or `flutter test`) must play the game exactly the same.
@@ -43,8 +44,10 @@ class Sound {
   /// Called when the player leaves a table and when the app goes to the background.
   void stopAll() {
     _generation++;
+    _line++;
     try {
       unawaited(_tts?.stop().catchError((_) => null));
+      unawaited(_voicePlayer?.stop().catchError((_) {}));
       for (final p in _pool) {
         unawaited(p.stop().catchError((_) {}));
       }
@@ -104,7 +107,46 @@ class Sound {
     }
   }
 
-  /// Say a word or two in Arabic (the latest call replaces one still being spoken).
+  /// Clips in assets/voice (file name without .mp3), see docs/voice-lines.md.
+  static const voiceClips = {
+    'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'n10', 'n11', 'n12', 'n13', //
+    'pass', 'double', 'trump', 'hokm', 'suit_h', 'suit_d', 'suit_s', 'suit_c', //
+    'c_king', 'c_queens', 'c_diamonds', 'c_tricks', 'c_trix', //
+    'b_sun', 'b_hokm2', 'b_ashkal', 'b_pass1', 'b_pass2', 'b_triple', 'b_four', 'b_qahwa', //
+    's87', 's90', 's95', 's100', 's105', 's110', 's115', 's120', 's125', 's130', 's135', 's140', 's145', //
+    's150', 's155', 's160', 's165', 's170', 's175', 's180', 's185', 's187', 'h_meld',
+  };
+
+  AudioPlayer? _voicePlayer;
+
+  /// bumped by every new call: a sequence still playing stops at its next clip
+  int _line = 0;
+
+  /// Speak a call: its recorded clips one after another when all exist, else [text]
+  /// with the phone's voice. The latest call replaces one still being spoken.
+  void speak(List<String> clips, String text) {
+    if (!voice || _underTest || !_foreground) return;
+    if (clips.isEmpty || !clips.every(voiceClips.contains)) {
+      say(text);
+      return;
+    }
+    unawaited(_playClips(clips, ++_line));
+  }
+
+  Future<void> _playClips(List<String> clips, int line) async {
+    try {
+      final p = _voicePlayer ??= AudioPlayer()..setReleaseMode(ReleaseMode.stop);
+      await p.stop();
+      for (final c in clips) {
+        if (line != _line) return;
+        final done = p.onPlayerComplete.first;
+        await p.play(AssetSource('voice/$c.mp3'));
+        await done.timeout(const Duration(seconds: 3), onTimeout: () {});
+      }
+    } catch (_) {}
+  }
+
+  /// Say a word or two with the phone's voice (the latest call replaces one still being spoken).
   void say(String text) {
     if (!voice || _underTest || !_foreground || text.trim().isEmpty) return;
     try {

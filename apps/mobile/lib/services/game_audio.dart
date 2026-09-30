@@ -62,23 +62,37 @@ void playTableAudio(RoomView? before, RoomView now) {
     if (myTurnNow && !myTurnBefore && now.status == 'playing') s.play(Sfx.turn, delay: const Duration(milliseconds: 250));
     if (b.won != null && a.won == null) s.play(b.won! ? Sfx.win : Sfx.lose, delay: const Duration(milliseconds: 400));
   }
-  final words = before == null ? const <String>[] : spokenChoices(before, now);
-  if (words.isNotEmpty) s.say(words.last);
+  final calls = before == null ? const <Spoken>[] : spokenChoices(before, now);
+  if (calls.isNotEmpty) s.speak(calls.last.clips, calls.last.text);
 }
 
-/// The choices made between the two views, as words to say.
+/// One call to speak: the recorded clips (assets/voice) and the same words as text,
+/// for the phone's voice when a clip is missing.
+class Spoken {
+  const Spoken(this.text, this.clips);
+  final String text;
+  final List<String> clips;
+  @override
+  String toString() => '$text $clips';
+}
+
+String _suitClip(String suit) => 'suit_${suit.toLowerCase()}';
+
+/// The choices made between the two views, as calls to speak.
 @visibleForTesting
-List<String> spokenChoices(RoomView before, RoomView now) {
-  final out = <String>[];
+List<Spoken> spokenChoices(RoomView before, RoomView now) {
+  final out = <Spoken>[];
   if ((before.game, now.game) case (final a?, final b?)) {
     for (final e in b.bidLog.skip(a.handNo == b.handNo ? a.bidLog.length : 0)) {
-      out.add(e.bid == 'pass' ? 'باس' : numberWordAr(e.bid as int));
+      out.add(e.bid == 'pass' ? const Spoken('باس', ['pass']) : Spoken(numberWordAr(e.bid as int), ['n${e.bid}']));
     }
-    if (a.trump == null && b.trump != null && b.variant == 'tarneeb') out.add('الطرنيب ${suitNameArFromCode(b.trump!)}');
+    if (a.trump == null && b.trump != null && b.variant == 'tarneeb') {
+      out.add(Spoken('الطرنيب ${suitNameArFromCode(b.trump!)}', ['trump', _suitClip(b.trump!)]));
+    }
   }
   if ((before.trix, now.trix) case (final a?, final b?)) {
-    if (b.contract != null && (a.contract != b.contract || a.handNo != b.handNo)) out.add(contractNameAr(b.contract!));
-    if (b.doubled.length > (a.handNo == b.handNo ? a.doubled.length : 0)) out.add('دبل');
+    if (b.contract != null && (a.contract != b.contract || a.handNo != b.handNo)) out.add(Spoken(contractNameAr(b.contract!), ['c_${b.contract}']));
+    if (b.doubled.length > (a.handNo == b.handNo ? a.doubled.length : 0)) out.add(const Spoken('دبل', ['double']));
     // trix contract: a card laid on the suit columns
     if (b.contract == 'trix' && a.handNo == b.handNo && b.handCounts.fold(0, (x, y) => x + y) < a.handCounts.fold(0, (x, y) => x + y)) {
       Sound.instance.play(Sfx.place);
@@ -87,22 +101,35 @@ List<String> spokenChoices(RoomView before, RoomView now) {
   if ((before.baloot, now.baloot) case (final a?, final b?)) {
     for (final e in b.bidLog.skip(a.handNo == b.handNo ? a.bidLog.length : 0)) {
       final word = balootCallAr(e.call, round: e.round);
-      out.add(e.call == 'hokm' && e.round == 2 && e.suit != null ? '$word ${suitNameArFromCode(e.suit!)}' : word);
+      final clip = switch ((e.call, e.round)) {
+        ('sun', _) => 'b_sun',
+        ('ashkal', _) => 'b_ashkal',
+        ('hokm', 2) => 'b_hokm2',
+        ('hokm', _) => 'hokm',
+        ('pass', 2) => 'b_pass2',
+        _ => 'b_pass1',
+      };
+      out.add(e.call == 'hokm' && e.round == 2 && e.suit != null
+          ? Spoken('$word ${suitNameArFromCode(e.suit!)}', [clip, _suitClip(e.suit!)])
+          : Spoken(word, [clip]));
     }
     if (a.handNo == b.handNo) {
-      if (b.level > a.level) out.add(balootRaiseAr(const ['', '', 'double', 'triple', 'four'][b.level.clamp(0, 4)]));
-      if (b.qahwa && !a.qahwa) out.add('قهوة');
+      if (b.level > a.level) {
+        final step = const ['', '', 'double', 'triple', 'four'][b.level.clamp(0, 4)];
+        out.add(Spoken(balootRaiseAr(step), [step == 'double' ? 'double' : 'b_$step']));
+      }
+      if (b.qahwa && !a.qahwa) out.add(const Spoken('قهوة', ['b_qahwa']));
     }
   }
   if ((before.b187, now.b187) case (final a?, final b?)) {
     for (final e in b.bidLog.skip(a.handNo == b.handNo ? a.bidLog.length : 0)) {
-      out.add(e.isPass ? 'باس' : '${e.bid}');
+      out.add(e.isPass ? const Spoken('باس', ['pass']) : Spoken('${e.bid}', ['s${e.bid}']));
     }
-    if (a.trump == null && b.trump != null) out.add('الحكم ${suitNameArFromCode(b.trump!)}');
+    if (a.trump == null && b.trump != null) out.add(Spoken('الحكم ${suitNameArFromCode(b.trump!)}', ['hokm', _suitClip(b.trump!)]));
   }
   if ((before.hand, now.hand) case (final a?, final b?)) {
     if (a.handNo == b.handNo) {
-      if (b.melds.length > a.melds.length) out.add('نزل');
+      if (b.melds.length > a.melds.length) out.add(const Spoken('نزل', ['h_meld']));
       if (b.fireCount > a.fireCount) Sound.instance.play(Sfx.place);
       if (b.turn == b.mySeat && b.myHand.length == a.myHand.length + 1) Sound.instance.play(Sfx.deal);
     }

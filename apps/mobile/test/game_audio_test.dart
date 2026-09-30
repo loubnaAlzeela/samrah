@@ -1,8 +1,11 @@
 // Every player's choice is spoken: bids and «باس», the trump, a Trix
 // contract, Baloot calls. Built from two consecutive server views.
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/models/room_view.dart';
 import 'package:mobile/services/game_audio.dart';
+import 'package:mobile/services/sound.dart';
 
 RoomView tarneeb(List<Map<String, Object>> bids, {String? trump}) => RoomView.fromJson({
       'code': 'A',
@@ -51,7 +54,19 @@ void main() {
       {'seat': 0, 'bid': 8},
       {'seat': 1, 'bid': 'pass'},
     ]);
-    expect(spokenChoices(a, b), ['ثمانية', 'باس']);
-    expect(spokenChoices(b, tarneeb([{'seat': 0, 'bid': 8}], trump: 'H')), ['الطرنيب قلب']);
+    expect(spokenChoices(a, b).map((s) => s.text), ['ثمانية', 'باس']);
+    expect(spokenChoices(a, b).map((s) => s.clips), [
+      ['n8'],
+      ['pass'],
+    ]);
+    final trump = spokenChoices(b, tarneeb([{'seat': 0, 'bid': 8}], trump: 'H')).single;
+    expect(trump.text, 'الطرنيب قلب');
+    expect(trump.clips, ['trump', 'suit_h']);
+  });
+
+  test('every clip a call can name exists in assets/voice', () {
+    for (final c in Sound.voiceClips) {
+      expect(File('assets/voice/$c.mp3').existsSync(), isTrue, reason: c);
+    }
   });
 }

@@ -66,6 +66,7 @@ flutter:
     - assets/brand/samrah-wordmark-en.png
     - assets/brand/samrah-logo-en.png
     - assets/sounds/
+    - assets/voice/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
