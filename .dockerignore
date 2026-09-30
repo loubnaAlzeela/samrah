@@ -1,0 +1,10 @@
+# only the rules engine and the server go into the image
+**/node_modules
+.git
+apps/mobile
+design
+docs
+scripts
+**/test
+*.log
+.server_log.txt
