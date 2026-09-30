@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Development builds only (this file overrides src/main for this build type):
+  allows plain ws:// to a game server on the local network or the emulator
+  (ws://<lan-ip>:2567, ws://10.0.2.2:2567). Release builds stay TLS-only.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

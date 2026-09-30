@@ -91,6 +91,11 @@ flutter run --dart-define=GAME_SERVER=ws://<dev-machine-lan-ip>:2567
 flutter build apk --dart-define=GAME_SERVER=ws://<dev-machine-lan-ip>:2567
 ```
 
+**Release builds accept only encrypted `wss://` servers** (see
+`android/app/src/main/res/xml/network_security_config.xml`); debug and
+profile builds also allow plain `ws://`, for a server on your machine.
+The live server: `wss://samrah-production.up.railway.app`.
+
 Default (`lib/screens/room_screen.dart`, `kGameServer` constant) is
 `ws://10.0.2.2:2567` — the Android emulator's alias for the host machine's
 `localhost`. **A real phone on Wi-Fi needs the dev machine's actual LAN IP**

@@ -67,10 +67,6 @@ class _RoomScreenState extends State<RoomScreen> {
   RoomConnection? _connection;
   String _openStatus = 'idle'; // idle | connecting | error
   String? _lastError;
-
-  /// Technical text of the last connection failure, shown under the server line while we
-  /// debug the connection (remove together with the server line once it connects reliably).
-  String? _errorDetail;
   RoomView? _view;
 
   @override
@@ -87,7 +83,6 @@ class _RoomScreenState extends State<RoomScreen> {
     setState(() {
       _openStatus = 'connecting';
       _lastError = null;
-      _errorDetail = null;
     });
     try {
       final conn = await _client.openRoom(playerName: name, variant: widget.variant, settings: widget.settings);
@@ -100,7 +95,6 @@ class _RoomScreenState extends State<RoomScreen> {
       setState(() {
         _openStatus = 'error';
         _lastError = errorText(e);
-        _errorDetail = e.toString();
       });
     }
   }
@@ -369,13 +363,6 @@ class _RoomScreenState extends State<RoomScreen> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: SamrahColors.suitRed),
               ),
-            ),
-          const SizedBox(height: 20),
-          Text('server: $kGameServer', style: const TextStyle(fontSize: 11, color: SamrahColors.textMuted)),
-          if (_errorDetail != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: SelectableText(_errorDetail!, textDirection: TextDirection.ltr, style: const TextStyle(fontSize: 11, color: SamrahColors.textMuted)),
             ),
         ],
       ),

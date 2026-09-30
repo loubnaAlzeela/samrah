@@ -1,15 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  DEV-ONLY: allows plain ws:// (cleartext) connections everywhere. Android
-  9+ blocks cleartext by default in release builds; without this the app
-  installs fine but every connection attempt is silently dropped.
-
-  Scoped to specific IPs is more correct, but the dev machine's LAN IP
-  changes across reboots/networks — a blanket allow avoids editing this
-  file (and rebuilding) every session. MUST be replaced with a scoped
-  domain-config (or removed entirely) once the server sits behind wss://
-  (TLS) for real users — never ship base-config cleartext to production.
+  Release: encrypted connections only. The game server is reached over
+  wss:// (TLS), so plain ws:// / http:// traffic is refused.
+  Debug and profile builds override this file (src/debug, src/profile) to
+  allow plain ws:// to a server on the local network or the emulator.
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true" />
+    <base-config cleartextTrafficPermitted="false" />
 </network-security-config>
