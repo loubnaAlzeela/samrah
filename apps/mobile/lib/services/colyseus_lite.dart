@@ -125,15 +125,39 @@ class ColyseusLite {
   ColyseusLite(String endpoint) : _ws = Uri.parse(endpoint.endsWith('/') ? endpoint.substring(0, endpoint.length - 1) : endpoint);
 
   final Uri _ws;
-  final HttpClient _http = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+
+  /// One pool for the matchmaking POSTs AND the WebSocket upgrades, so a room
+  /// opens over a connection that is already resolved and TLS-handshaken
+  /// instead of paying DNS + TCP + TLS twice (each ~3 round trips on a phone).
+  final HttpClient _http = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 10)
+    ..idleTimeout = const Duration(seconds: 45);
 
   Uri get _httpBase => _ws.replace(scheme: _ws.scheme == 'wss' ? 'https' : 'http');
+
+  DateTime? _warmedAt;
+
+  /// Opens (or refreshes) a pooled connection to the server ahead of time, so
+  /// the next create/join skips the handshakes. Fire-and-forget; errors are ignored.
+  /// Cheap to call often: it does nothing if the pool was touched in the last 30s
+  /// (the pool keeps an idle connection for 45s).
+  Future<void> warmUp() async {
+    final now = DateTime.now();
+    if (_warmedAt != null && now.difference(_warmedAt!) < const Duration(seconds: 30)) return;
+    _warmedAt = now;
+    try {
+      final req = await _http.getUrl(_httpBase.replace(path: '${_httpBase.path}/'));
+      final res = await req.close().timeout(const Duration(seconds: 10));
+      await res.drain<void>();
+    } catch (_) {}
+  }
 
   Future<LiteRoom> create(String roomName, {Map<String, Object?> options = const {}}) => _matchmake('create', roomName, options);
 
   Future<LiteRoom> joinById(String roomId, {Map<String, Object?> options = const {}}) => _matchmake('joinById', roomId, options);
 
   Future<LiteRoom> _matchmake(String method, String target, Map<String, Object?> options) async {
+    _warmedAt = DateTime.now();
     final uri = _httpBase.replace(path: '${_httpBase.path}/matchmake/$method/$target');
     final req = await _http.postUrl(uri);
     req.headers.contentType = ContentType.json;
@@ -161,7 +185,7 @@ class ColyseusLite {
       path: '${base.path}/${seat['processId']}/${seat['roomId']}',
       queryParameters: {'sessionId': '${seat['sessionId']}'},
     );
-    final socket = await WebSocket.connect(url.toString()).timeout(const Duration(seconds: 15));
+    final socket = await WebSocket.connect(url.toString(), customClient: _http).timeout(const Duration(seconds: 15));
     socket.pingInterval = const Duration(seconds: 10);
     final room = LiteRoom._('${seat['roomId']}', '${seat['sessionId']}', socket);
     final joined = Completer<void>();

@@ -11,6 +11,8 @@ void main() {
   // the game falls silent in the background (a table left open keeps playing)
   Sound.instance.watchAppLifecycle();
   runApp(const SamrahApp());
+  // load every sound and voice clip once, in the background, while the player logs in
+  Sound.instance.warmUp();
 }
 
 class SamrahApp extends StatelessWidget {

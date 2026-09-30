@@ -55,7 +55,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // connect to the game server now, while the player picks a game, so a table opens at once
+    unawaited(gameServer.warmUp());
     _bannerTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      unawaited(gameServer.warmUp()); // keeps the connection warm while the player browses (throttled)
       if (!mounted || !_bannerCtrl.hasClients) return;
       final next = (_bannerPage + 1) % _banners.length;
       _bannerCtrl.animateToPage(next, duration: const Duration(milliseconds: 350), curve: Curves.easeOut);

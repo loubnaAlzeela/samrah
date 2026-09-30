@@ -33,6 +33,11 @@ String variantNameAr(String v) => switch (v) {
 /// same network needs the dev machine's LAN IP passed via --dart-define.
 const String kGameServer = String.fromEnvironment('GAME_SERVER', defaultValue: 'ws://10.0.2.2:2567');
 
+/// One client for the whole app (created on first use): its connection pool
+/// outlives any single table, so the home screen can warm it up and every
+/// table after the first opens without new handshakes.
+final GameServerClient gameServer = GameServerClient(kGameServer);
+
 class RoomScreen extends StatefulWidget {
   const RoomScreen({super.key, this.initialName, this.autoOpen = false, this.variant = 'tarneeb', this.settings});
 
@@ -59,11 +64,6 @@ class RoomScreen extends StatefulWidget {
 class _RoomScreenState extends State<RoomScreen> {
   late final _nameCtrl = TextEditingController(text: widget.initialName?.trim().isNotEmpty == true ? widget.initialName : 'لاعب');
 
-  // Created lazily on first use (on "open room"), so a screen that never
-  // connects never opens an HTTP client.
-  GameServerClient? _gameClient;
-  GameServerClient get _client => _gameClient ??= GameServerClient(kGameServer);
-
   RoomConnection? _connection;
   String _openStatus = 'idle'; // idle | connecting | error
   String? _lastError;
@@ -85,7 +85,7 @@ class _RoomScreenState extends State<RoomScreen> {
       _lastError = null;
     });
     try {
-      final conn = await _client.openRoom(playerName: name, variant: widget.variant, settings: widget.settings);
+      final conn = await gameServer.openRoom(playerName: name, variant: widget.variant, settings: widget.settings);
       _connection = conn;
       conn.onState.listen((v) => setState(() => _view = v));
       conn.onError.listen((e) => setState(() => _lastError = errorText(e)));
@@ -104,7 +104,6 @@ class _RoomScreenState extends State<RoomScreen> {
     // leaving the table: stop the voice and any sound still scheduled for it
     Sound.instance.stopAll();
     _connection?.leave();
-    _gameClient?.dispose();
     _nameCtrl.dispose();
     super.dispose();
   }

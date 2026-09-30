@@ -119,6 +119,10 @@ class GameServerClient {
   GameServerClient(String endpoint) : _client = ColyseusLite(endpoint);
   final ColyseusLite _client;
 
+  /// Warms the connection to the server (DNS, TCP, TLS) before the player asks
+  /// for a table, so opening one costs only the matchmaking round trips.
+  Future<void> warmUp() => _client.warmUp();
+
   /// Creates a new room and returns the live connection to it.
   /// [settings] is a partial `RoomSettings` (packages/rules/src/protocol.ts);
   /// the server merges it over its defaults and rejects invalid values.
