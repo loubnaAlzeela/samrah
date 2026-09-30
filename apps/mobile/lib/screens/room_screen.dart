@@ -59,16 +59,18 @@ class RoomScreen extends StatefulWidget {
 class _RoomScreenState extends State<RoomScreen> {
   late final _nameCtrl = TextEditingController(text: widget.initialName?.trim().isNotEmpty == true ? widget.initialName : 'لاعب');
 
-  // Created lazily on first use, not as a field initializer: constructing
-  // GameServerClient loads the native Colyseus library, which isn't present
-  // on PATH under `flutter test`'s host runner and would throw before the
-  // widget even builds.
+  // Created lazily on first use (on "open room"), so a screen that never
+  // connects never opens an HTTP client.
   GameServerClient? _gameClient;
   GameServerClient get _client => _gameClient ??= GameServerClient(kGameServer);
 
   RoomConnection? _connection;
   String _openStatus = 'idle'; // idle | connecting | error
   String? _lastError;
+
+  /// Technical text of the last connection failure, shown under the server line while we
+  /// debug the connection (remove together with the server line once it connects reliably).
+  String? _errorDetail;
   RoomView? _view;
 
   @override
@@ -85,6 +87,7 @@ class _RoomScreenState extends State<RoomScreen> {
     setState(() {
       _openStatus = 'connecting';
       _lastError = null;
+      _errorDetail = null;
     });
     try {
       final conn = await _client.openRoom(playerName: name, variant: widget.variant, settings: widget.settings);
@@ -97,6 +100,7 @@ class _RoomScreenState extends State<RoomScreen> {
       setState(() {
         _openStatus = 'error';
         _lastError = errorText(e);
+        _errorDetail = e.toString();
       });
     }
   }
@@ -368,6 +372,11 @@ class _RoomScreenState extends State<RoomScreen> {
             ),
           const SizedBox(height: 20),
           Text('server: $kGameServer', style: const TextStyle(fontSize: 11, color: SamrahColors.textMuted)),
+          if (_errorDetail != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: SelectableText(_errorDetail!, textDirection: TextDirection.ltr, style: const TextStyle(fontSize: 11, color: SamrahColors.textMuted)),
+            ),
         ],
       ),
     );

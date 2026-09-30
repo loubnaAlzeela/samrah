@@ -1,5 +1,6 @@
-// Thin wrapper around the `colyseus` pub.dev package (official Dart/FFI
-// bindings, version-matched to the server's @colyseus/core ^0.18.17).
+// The room connection the screens use, over our own pure-Dart Colyseus client
+// (colyseus_lite.dart). The native `package:colyseus` could not resolve host
+// names on Android, so it is no longer used.
 //
 // LammaRoom (apps/server/src/LammaRoom.ts) never calls Colyseus's schema
 // `setState()` — every message is plain JSON via `client.send`/
@@ -10,26 +11,24 @@
 // `allowReconnection()` — it holds a disconnected seat itself
 // (`RECONNECT_SECONDS`) and lets the same client rejoin by sending its own
 // `token` (from the `welcome` message) back in the `joinById` options. So
-// this layer disables Colyseus's native auto-reconnect
-// (`setReconnectionOptions(enabled: false)`) and drives its own retry loop
-// instead, with the same token.
+// this layer drives its own retry loop, with the same token.
 import 'dart:async';
 
-import 'package:colyseus/colyseus.dart';
+import 'colyseus_lite.dart';
 
 import '../models/room_view.dart';
 
 enum ConnStatus { connecting, connected, reconnecting, closed }
 
 /// One live connection to a "lamma" room. Screens talk to this, never to
-/// `package:colyseus` directly.
+/// the transport directly.
 class RoomConnection {
   RoomConnection._(this._client, String code, this._playerName) : _code = code;
 
-  final ColyseusClient _client;
+  final ColyseusLite _client;
   final String _code;
   final String _playerName;
-  ColyseusRoom? _room;
+  LiteRoom? _room;
   String? _token;
   bool _closedByUs = false;
   StreamSubscription? _leaveSub;
@@ -52,14 +51,13 @@ class RoomConnection {
   /// Fires when the connection status changes (connected / reconnecting / closed for good).
   Stream<ConnStatus> get onStatus => _statusCtrl.stream;
 
-  Future<void> _attach(ColyseusRoom room) async {
+  Future<void> _attach(LiteRoom room) async {
     _room = room;
-    room.setReconnectionOptions(enabled: false);
     room.onMessage('welcome').listen((m) {
       final token = (m as Map)['token'] as String?;
       if (token != null) _token = token;
     });
-    room.onMessage('state').listen((m) => _stateCtrl.add(RoomView.fromJson(m)));
+    room.onMessage('state').listen((m) => _stateCtrl.add(RoomView.fromJson(m as Map)));
     room.onMessage('error').listen((m) => _errorCtrl.add((m as Map)['error']?.toString() ?? 'unknown'));
     unawaited(_leaveSub?.cancel());
     _leaveSub = room.onLeave.listen(_onLeave);
@@ -118,8 +116,8 @@ class RoomConnection {
 
 /// Connects to the game server and opens "lamma" rooms.
 class GameServerClient {
-  GameServerClient(String endpoint) : _client = ColyseusClient(endpoint);
-  final ColyseusClient _client;
+  GameServerClient(String endpoint) : _client = ColyseusLite(endpoint);
+  final ColyseusLite _client;
 
   /// Creates a new room and returns the live connection to it.
   /// [settings] is a partial `RoomSettings` (packages/rules/src/protocol.ts);

@@ -113,14 +113,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
-  colyseus:
-    dependency: "direct main"
-    description:
-      name: colyseus
-      sha256: "10466027afcbc1fcbf0b887e0dcaec85d93ae3e4f46c83ed7ab2af7e6a72e031"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.18.3"
   crypto:
     dependency: transitive
     description:

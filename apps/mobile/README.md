@@ -17,8 +17,9 @@ lib/
   main.dart               entry point only — runApp(), no logic
   screens/room_screen.dart  the Slice 1 screen (name field, open-room
                              button, room code, live seat list)
-  services/colyseus_client.dart  wrapper around package:colyseus — screens
-                                  never import package:colyseus directly
+  services/colyseus_client.dart  the room connection the screens use
+  services/colyseus_lite.dart    pure-Dart Colyseus client (HTTP + WebSocket)
+  services/msgpack.dart          MessagePack encoder / decoder for it
   models/seat_info.dart   SeatInfo / RoomState — typed views over the
                            server's `state` JSON payload
 test/widget_test.dart     smoke test (room screen renders)
@@ -60,28 +61,26 @@ classes — just message-type listeners:
 - `room.send('sit' | 'bid' | 'trump' | 'play' | ...)` → not wired up yet in
   slice 1 (out of scope: this slice only proves connectivity + presence).
 
-### Library used
+### Connection (no native library)
 
-[`colyseus`](https://pub.dev/packages/colyseus) (pub.dev, verified
-publisher `colyseus.io`, maintained by the Colyseus author) — official Dart
-bindings over the native Colyseus C SDK via `dart:ffi`, version **0.18.3**,
-matching the server's `@colyseus/core ^0.18.17`. It implements the real
-Colyseus wire protocol (HTTP matchmaking handshake + WebSocket, msgpack
-framing) so the client doesn't have to hand-roll it. Supports Android,
-iOS, Windows, macOS, Linux — **not web** (that needs a separate Emscripten
-build the package doesn't ship).
+`lib/services/colyseus_lite.dart` is a small pure-Dart client for the
+Colyseus 0.18 wire protocol, covering what this game uses: HTTP
+matchmaking (`/matchmake/create|joinById`), then a WebSocket carrying
+`[code][msgpack type][msgpack payload]` frames (see the header comment).
+It goes through `dart:io`, so it uses the phone's own DNS, TLS
+certificates and network stack.
 
-The prebuilt native library is bundled by the package for each platform
-(e.g. `colyseus_flutter.dll` for Windows, `libcolyseus_flutter.so` for
-Android) — no extra native toolchain needed to build.
+It replaced the native [`colyseus`](https://pub.dev/packages/colyseus)
+package (FFI bindings over the Colyseus C SDK): on Android that library's
+own name resolver failed for every host name
+(`TemporaryNameServerFailure`), so the app could only reach a server by IP
+address, never `wss://<domain>`.
 
 `lib/services/colyseus_client.dart` wraps it: `GameServerClient.openRoom()`
 returns a `RoomConnection` with typed `onState` / `onError` / `onLeave`
-streams, so `RoomScreen` never touches `package:colyseus` directly. The
-client is constructed lazily (on first "open room" tap, not as a field
-initializer) — constructing it eagerly loads the native library
-immediately, which throws under `flutter test`'s host runner (no DLL on
-its PATH there); building it lazily keeps the widget testable.
+streams, so screens never touch the transport directly. Check a server
+from the command line with the app's own client:
+`dart run tool/verify_connection.dart wss://samrah-production.up.railway.app baloot 8`.
 
 ## Server address (never hard-coded)
 
