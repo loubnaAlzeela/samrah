@@ -323,7 +323,43 @@ class _RoomScreenState extends State<RoomScreen> {
           IconButton(icon: const Icon(Icons.group_outlined), tooltip: 'اللاعبون', onPressed: _view == null ? null : _openPlayers),
         ],
       ),
-      body: conn == null ? _openForm() : _connectedBody(conn),
+      // coming from the home screen the table opens by itself: show the brand while it does,
+      // and fall back to the name form only if opening failed (or was never automatic)
+      body: conn != null
+          ? _connectedBody(conn)
+          : widget.autoOpen && _openStatus != 'error'
+          ? _preparingTable()
+          : _openForm(),
+    );
+  }
+
+  /// Shown while a table is being opened: the Samrah mark and wordmark with a slim
+  /// progress line — no connection wording, so the wait reads as part of the game.
+  Widget _preparingTable() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PopIn(
+            from: 0.7,
+            duration: Motion.slow,
+            child: Image.asset('assets/brand/samrah-mark.png', height: 140, fit: BoxFit.contain),
+          ),
+          const SizedBox(height: 8),
+          EnterFrom(
+            delay: const Duration(milliseconds: 200),
+            child: Image.asset('assets/brand/samrah-wordmark-ar.png', height: 44, fit: BoxFit.contain, semanticLabel: 'سمرة'),
+          ),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: 120,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: const LinearProgressIndicator(minHeight: 3, color: SamrahColors.accent, backgroundColor: SamrahColors.surface2),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -355,7 +391,10 @@ class _RoomScreenState extends State<RoomScreen> {
             decoration: const InputDecoration(labelText: 'اسم اللاعب'),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: _openStatus == 'connecting' ? null : _openRoom, child: Text(_openStatus == 'connecting' ? 'جارٍ الاتصال...' : 'افتح غرفة')),
+          ElevatedButton(
+            onPressed: _openStatus == 'connecting' ? null : _openRoom,
+            child: Text(_openStatus == 'error' ? 'حاول مجدداً' : 'افتح غرفة'),
+          ),
           if (_lastError != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),
@@ -372,7 +411,8 @@ class _RoomScreenState extends State<RoomScreen> {
 
   Widget _connectedBody(RoomConnection conn) {
     final v = _view;
-    if (v == null) return const Center(child: CircularProgressIndicator());
+    // connected, waiting for the first table state: keep the same brand screen, no spinner swap
+    if (v == null) return _preparingTable();
     if (conn.status == ConnStatus.closed) {
       return Center(
         child: Padding(
