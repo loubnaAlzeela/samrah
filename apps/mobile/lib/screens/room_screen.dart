@@ -101,6 +101,8 @@ class _RoomScreenState extends State<RoomScreen> {
 
   @override
   void dispose() {
+    // leaving the table: stop the voice and any sound still scheduled for it
+    Sound.instance.stopAll();
     _connection?.leave();
     _gameClient?.dispose();
     _nameCtrl.dispose();

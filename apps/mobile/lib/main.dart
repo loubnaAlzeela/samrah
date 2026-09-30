@@ -3,9 +3,13 @@
 import 'package:flutter/material.dart';
 
 import 'screens/login_screen.dart';
+import 'services/sound.dart';
 import 'theme/samrah_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // the game falls silent in the background (a table left open keeps playing)
+  Sound.instance.watchAppLifecycle();
   runApp(const SamrahApp());
 }
 

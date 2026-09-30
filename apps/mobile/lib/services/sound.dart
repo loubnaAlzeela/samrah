@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 enum Sfx { cardThrow, deal, collect, place, turn, tap, tick, win, lose }
@@ -26,6 +27,29 @@ class Sound {
   bool voice = true;
 
   static final bool _underTest = Platform.environment.containsKey('FLUTTER_TEST');
+
+  /// false while the app is in the background: nothing plays or speaks then
+  /// (a table left open keeps receiving the computers' moves)
+  bool _foreground = true;
+
+  /// bumped by [stopAll]: sounds scheduled before it (a delayed effect) are dropped
+  int _generation = 0;
+
+  /// Silence the app whenever it leaves the screen, and let it speak again on return.
+  /// Call once from main().
+  void watchAppLifecycle() => WidgetsBinding.instance.addObserver(_Lifecycle(this));
+
+  /// Stop everything now: the voice mid-word, effects playing, effects still scheduled.
+  /// Called when the player leaves a table and when the app goes to the background.
+  void stopAll() {
+    _generation++;
+    try {
+      unawaited(_tts?.stop().catchError((_) => null));
+      for (final p in _pool) {
+        unawaited(p.stop().catchError((_) {}));
+      }
+    } catch (_) {}
+  }
 
   static const _files = {
     Sfx.cardThrow: 'card_throw',
@@ -48,9 +72,12 @@ class Sound {
 
   /// Play an effect now, or after [delay] (to land with an animation).
   void play(Sfx s, {Duration delay = Duration.zero}) {
-    if (!effects || _underTest) return;
+    if (!effects || _underTest || !_foreground) return;
     if (delay > Duration.zero) {
-      Timer(delay, () => play(s));
+      final gen = _generation;
+      Timer(delay, () {
+        if (gen == _generation) play(s);
+      });
       return;
     }
     // many cards dealt at once would stack up: one flick per 60 ms is enough
@@ -79,7 +106,7 @@ class Sound {
 
   /// Say a word or two in Arabic (the latest call replaces one still being spoken).
   void say(String text) {
-    if (!voice || _underTest || text.trim().isEmpty) return;
+    if (!voice || _underTest || !_foreground || text.trim().isEmpty) return;
     try {
       final tts = _tts ??= _initTts();
       unawaited(tts.stop().then((_) => tts.speak(text)).catchError((_) => null));
@@ -93,6 +120,18 @@ class Sound {
     unawaited(t.setPitch(1.0).catchError((_) => null));
     unawaited(t.setVolume(1.0).catchError((_) => null));
     return t;
+  }
+}
+
+class _Lifecycle with WidgetsBindingObserver {
+  _Lifecycle(this.sound);
+  final Sound sound;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final visible = state == AppLifecycleState.resumed;
+    if (!visible && sound._foreground) sound.stopAll();
+    sound._foreground = visible;
   }
 }
 
