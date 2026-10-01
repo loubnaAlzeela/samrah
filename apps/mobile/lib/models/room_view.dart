@@ -26,7 +26,7 @@ class RoomView {
   /// Tarneeb / Syrian 41 game view (null for trix rooms).
   final PlayerView? game;
 
-  /// Trix game view (trix / trixPartners rooms only).
+  /// Trix game view (Trix and Trix Complex rooms only).
   final TrixView? trix;
 
   /// 187 game view (b187 rooms only).

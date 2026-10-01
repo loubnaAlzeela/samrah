@@ -301,6 +301,21 @@ describe('trix', () => {
     expect(g.variant).toBe('trixPartners');
     expect(g.teamScores).toEqual([g.seatScores[0] + g.seatScores[2], g.seatScores[1] + g.seatScores[3]]);
   });
+
+  it('trix complex: the kingdom is complex + trix, then the next owner takes over', { timeout: 60_000 }, async () => {
+    const host = P('كمبلكس');
+    await host.create('trixComplex');
+    host.send('start');
+    await waitFor(() => host.view!.status === 'playing', 'playing');
+    const g0 = host.views.find((v) => v.status === 'playing')!.game as any;
+    expect(g0.variant).toBe('trixComplex');
+    expect(g0.contractsLeft).toEqual(['complex', 'trix']);
+    const owner0 = g0.kingdomOwner;
+    await waitFor(() => (host.view!.game as any).kingdom === 1, 'second kingdom', 50_000);
+    const results = host.views.map((v) => (v.game as any)?.lastResult).filter(Boolean);
+    const played = new Set(results.filter((r: any) => r.kingdomOwner === owner0).map((r: any) => r.contract));
+    expect([...played].sort()).toEqual(['complex', 'trix']);
+  });
 });
 
 describe('baloot', () => {

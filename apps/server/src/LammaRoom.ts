@@ -183,7 +183,7 @@ export class LammaRoom extends Room {
     });
     this.onMessage('double', (client, msg: { cards?: unknown }) => {
       const cards = msg?.cards;
-      if (!Array.isArray(cards) || cards.length > 4 || !cards.every(isCard)) return this.reject(client, 'badDouble');
+      if (!Array.isArray(cards) || cards.length > 5 || !cards.every(isCard)) return this.reject(client, 'badDouble');
       this.handleAction(client, { type: 'double', cards });
     });
     // 187: the buyer hands one card back to each opponent, and after a lost hand picks −bid or −187

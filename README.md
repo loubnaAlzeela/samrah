@@ -12,6 +12,7 @@
 | طرنيب سوري 41 | 4، كل لاعب يطلب لنفسه | [tarneeb-syrian-41.md](docs/rules/tarneeb-syrian-41.md) |
 | 400 | 4، فريقان، كل لاعب يطلب لنفسه (الطرنيب كبة) | [400.md](docs/rules/400.md) |
 | تركس / تركس شراكة | 4 | [trix.md](docs/rules/trix.md) |
+| تركس كمبلكس / تركس كمبلكس شراكة | 4 | [trix.md](docs/rules/trix.md#تركس-كمبلكس) |
 | لعبة 187 | 4 أو 5 (يُختار عند إنشاء الغرفة) | [187.md](docs/rules/187.md) |
 | بلوت | 4، فريقان | [baloot.md](docs/rules/baloot.md) |
 | هاند سعودي | من 2 إلى 5 (يُختار عند إنشاء الغرفة) | [hand.md](docs/rules/hand.md) |

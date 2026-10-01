@@ -23,7 +23,9 @@ LINES = {
     'n10': 'عشر', 'n11': 'إدعش', 'n12': 'إثنعش', 'n13': 'ثلاثطعش',
     'pass': 'باس', 'double': 'دبل', 'trump': 'الطرنيب', 'hokm': 'حكم',
     'suit_h': 'هاص', 'suit_d': 'ديمن', 'suit_s': 'شريا', 'suit_c': 'سبيت',
-    'c_king': 'شيخ الكبة', 'c_queens': 'بنات', 'c_diamonds': 'ديناري', 'c_tricks': 'لطوش', 'c_trix': 'تركس',
+    'c_king': 'شيخ الكبة', 'c_queens': 'بنات', 'c_diamonds': 'ديناري', 'c_tricks': 'لطوش',
+    # diacritics: a bare «تركس» comes out like «ترقص»; it is «تِرْكِس», with a kasra under the kaf
+    'c_trix': 'تِرْكِس', 'c_complex': 'كُمْبْلِكْس',
     'b_sun': 'صن', 'b_hokm2': 'حكم ثاني', 'b_ashkal': 'أشكل', 'b_pass1': 'بس', 'b_pass2': 'ولا',
     'b_triple': 'تربل', 'b_four': 'فور', 'b_qahwa': 'قهوة',
     's87': 'سبعة وثمانين', 's90': 'تسعين', 's95': 'خمسة وتسعين', 's100': 'مية', 's105': 'مية وخمسة',

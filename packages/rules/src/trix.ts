@@ -6,18 +6,30 @@
  *   trix («تركس») — build the four suit sequences outward from the Jacks, finishing order scores.
  * The holder of 7♥ in the first deal owns the first kingdom; each next kingdom goes to the player on the right.
  * Solo («تركس») scores per seat; partners («تركس شراكة») adds opposite seats together.
+ * Trix Complex («تركس كمبلكس») has only 2 contracts per kingdom: complex («كمبلكس», the four trick penalties at
+ * once) and trix.
  */
 import { type Card, type RandInt, type Seat, type Suit, type Team, SUITS, deal, isCard, nextSeat, rankOf, suitOf } from './cards.ts';
 import { type Play, legalCards, trickWinner } from './trick.ts';
 
-export type TrixVariant = 'trix' | 'trixPartners';
-export const TRIX_VARIANTS: readonly TrixVariant[] = ['trix', 'trixPartners'];
+export type TrixVariant = 'trix' | 'trixPartners' | 'trixComplex' | 'trixComplexPartners';
+export const TRIX_VARIANTS: readonly TrixVariant[] = ['trix', 'trixPartners', 'trixComplex', 'trixComplexPartners'];
 export function isTrixVariant(v: unknown): v is TrixVariant {
-  return v === 'trix' || v === 'trixPartners';
+  return (TRIX_VARIANTS as readonly unknown[]).includes(v);
+}
+export function isTrixPartners(v: TrixVariant): boolean {
+  return v === 'trixPartners' || v === 'trixComplexPartners';
 }
 
-export type TrixContract = 'king' | 'queens' | 'diamonds' | 'tricks' | 'trix';
-export const TRIX_CONTRACTS: readonly TrixContract[] = ['king', 'queens', 'diamonds', 'tricks', 'trix'];
+export type TrixContract = 'king' | 'queens' | 'diamonds' | 'tricks' | 'complex' | 'trix';
+/** Every contract of any variant (for validating input). */
+export const TRIX_CONTRACTS: readonly TrixContract[] = ['king', 'queens', 'diamonds', 'tricks', 'complex', 'trix'];
+const CLASSIC_CONTRACTS: readonly TrixContract[] = ['king', 'queens', 'diamonds', 'tricks', 'trix'];
+const COMPLEX_CONTRACTS: readonly TrixContract[] = ['complex', 'trix'];
+/** The contracts of one kingdom in this variant. */
+export function trixContractsOf(v: TrixVariant): readonly TrixContract[] {
+  return v === 'trixComplex' || v === 'trixComplexPartners' ? COMPLEX_CONTRACTS : CLASSIC_CONTRACTS;
+}
 
 export const KING_OF_HEARTS: Card = 'H13';
 /** The holder of this card in the first deal owns the first kingdom. */
@@ -29,7 +41,7 @@ export const TRIX_KINGDOMS = 4;
 
 /**
  * contract -> the kingdom owner picks the next contract (turn = owner)
- * double   -> king / queens: each holder of K♥ / a Q decides which of those cards to double (turn = that seat)
+ * double   -> king / queens / complex: each holder of K♥ / a Q decides which of those cards to double (turn = that seat)
  * playing  -> play (turn = seat to act). In trix a seat with no placeable card is skipped automatically.
  * trickDone-> 4 cards on the table; the server calls advanceTrix() after a short pause
  * handOver -> hand scored; the server calls advanceTrix() to deal the next hand
@@ -158,13 +170,14 @@ export function startTrixHand(prev: TrixState, randInt: RandInt, preset?: { hand
 }
 
 export function contractsLeft(s: TrixState): TrixContract[] {
-  return TRIX_CONTRACTS.filter((c) => !s.used.includes(c));
+  return trixContractsOf(s.variant).filter((c) => !s.used.includes(c));
 }
 
-/** Cards a seat may double in the current contract (K♥ in king, any Queen in queens). */
+/** Cards a seat may double in the current contract (K♥ in king, any Queen in queens, both in complex). */
 export function doubleOptions(s: TrixState, seat: Seat): Card[] {
   if (s.contract === 'king') return s.hands[seat].filter((c) => c === KING_OF_HEARTS);
   if (s.contract === 'queens') return s.hands[seat].filter((c) => rankOf(c) === 12);
+  if (s.contract === 'complex') return s.hands[seat].filter((c) => c === KING_OF_HEARTS || rankOf(c) === 12);
   return [];
 }
 
@@ -203,11 +216,11 @@ export function actTrix(prev: TrixState, seat: Seat, a: TrixAction): TrixActResu
 function chooseContract(s: TrixState, seat: Seat, contract: TrixContract): TrixActResult {
   if (s.phase !== 'contract') return { ok: false, error: 'wrongPhase' };
   if (seat !== s.kingdomOwner) return { ok: false, error: 'notOwner' };
-  if (!TRIX_CONTRACTS.includes(contract)) return { ok: false, error: 'badContract' };
+  if (!trixContractsOf(s.variant).includes(contract)) return { ok: false, error: 'badContract' };
   if (s.used.includes(contract)) return { ok: false, error: 'contractUsed' };
   s.contract = contract;
   s.used.push(contract);
-  if (contract === 'king' || contract === 'queens') {
+  if (contract === 'king' || contract === 'queens' || contract === 'complex') {
     const queue: Seat[] = [];
     for (let i = 0, t = seat; i < 4; i++, t = nextSeat(t)) if (doubleOptions(s, t).length > 0) queue.push(t);
     if (queue.length > 0) {
@@ -300,7 +313,7 @@ export function advanceTrix(prev: TrixState, randInt: RandInt): TrixState {
   if (prev.phase === 'trickDone') return collectTrick(prev);
   if (prev.phase === 'handOver') {
     const s = structuredClone(prev);
-    if (s.used.length === TRIX_CONTRACTS.length) {
+    if (s.used.length === trixContractsOf(s.variant).length) {
       s.kingdom++;
       s.kingdomOwner = nextSeat(s.kingdomOwner);
       s.used = [];
@@ -346,11 +359,12 @@ export function trickPenalties(contract: TrixContract, taken: readonly Card[][],
   };
   for (let seat = 0; seat < 4; seat++) {
     for (const c of taken[seat]) {
-      if (contract === 'king' && c === KING_OF_HEARTS) cardPenalty(c, TRIX_POINTS.king, seat);
-      if (contract === 'queens' && rankOf(c) === 12) cardPenalty(c, TRIX_POINTS.queen, seat);
-      if (contract === 'diamonds' && suitOf(c) === 'D') d[seat] -= TRIX_POINTS.diamond;
+      const all = contract === 'complex';
+      if ((all || contract === 'king') && c === KING_OF_HEARTS) cardPenalty(c, TRIX_POINTS.king, seat);
+      if ((all || contract === 'queens') && rankOf(c) === 12) cardPenalty(c, TRIX_POINTS.queen, seat);
+      if ((all || contract === 'diamonds') && suitOf(c) === 'D') d[seat] -= TRIX_POINTS.diamond;
     }
-    if (contract === 'tricks') d[seat] -= TRIX_POINTS.trick * tricks[seat];
+    if (contract === 'tricks' || contract === 'complex') d[seat] -= TRIX_POINTS.trick * tricks[seat];
   }
   return d;
 }
@@ -374,7 +388,7 @@ function scoreHand(s: TrixState): TrixState {
     finishOrder: s.finishOrder.slice(),
   };
   s.trick = [];
-  const last = s.kingdom === TRIX_KINGDOMS - 1 && s.used.length === TRIX_CONTRACTS.length;
+  const last = s.kingdom === TRIX_KINGDOMS - 1 && s.used.length === trixContractsOf(s.variant).length;
   if (last) {
     s.phase = 'gameOver';
     decideWinner(s);
@@ -385,7 +399,7 @@ function scoreHand(s: TrixState): TrixState {
 }
 
 function decideWinner(s: TrixState) {
-  if (s.variant === 'trixPartners') {
+  if (isTrixPartners(s.variant)) {
     const [a, b] = s.teamScores;
     s.winner = a === b ? null : a > b ? 0 : 1;
     s.winnerSeats = s.winner === null ? [0, 1, 2, 3] : s.winner === 0 ? [0, 2] : [1, 3];
@@ -498,6 +512,8 @@ export function contractRisk(contract: TrixContract, hand: readonly Card[]): num
       return hand.filter((c) => suitOf(c) === 'D' && rankOf(c) >= 9).length + 1;
     case 'tricks':
       return hand.filter(high).length;
+    case 'complex':
+      return contractRisk('king', hand) + contractRisk('queens', hand) + contractRisk('diamonds', hand) + contractRisk('tricks', hand);
     case 'trix':
       // Jacks and cards next to them make trix good for us; it always scores, so it is never "risky"
       return -hand.filter((c) => rankOf(c) === 11).length - 1;
@@ -512,9 +528,10 @@ function pickContract(s: TrixState, seat: Seat): TrixContract {
 }
 
 function danger(contract: TrixContract, c: Card): number {
-  if (contract === 'king' && c === KING_OF_HEARTS) return 1000;
-  if (contract === 'queens' && rankOf(c) === 12) return 500 + rankOf(c);
-  if (contract === 'diamonds' && suitOf(c) === 'D') return 200 + rankOf(c);
+  const all = contract === 'complex';
+  if ((all || contract === 'king') && c === KING_OF_HEARTS) return 1000;
+  if ((all || contract === 'queens') && rankOf(c) === 12) return 500 + rankOf(c);
+  if ((all || contract === 'diamonds') && suitOf(c) === 'D') return 200 + rankOf(c);
   return rankOf(c);
 }
 

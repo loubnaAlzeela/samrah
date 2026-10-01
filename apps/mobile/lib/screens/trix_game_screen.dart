@@ -420,7 +420,7 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (final c in trixContracts)
+        for (final c in trixContractsOf(g.variant))
           _panelButton(
             contractNameAr(c),
             enabled: g.contractsLeft.contains(c),
@@ -435,7 +435,11 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          g.contract == 'king' ? 'من يأخذ شيخ الكبة المدبّل يخسر 150 وتربح أنت 75' : 'من يأخذ البنت المدبّلة يخسر 50 وتربح أنت 25',
+          switch (g.contract) {
+            'king' => 'من يأخذ شيخ الكبة المدبّل يخسر 150 وتربح أنت 75',
+            'complex' => 'شيخ الكبة المدبّل: من يأخذه يخسر 150 وتربح أنت 75 · البنت المدبّلة: يخسر 50 وتربح 25',
+            _ => 'من يأخذ البنت المدبّلة يخسر 50 وتربح أنت 25',
+          },
           textAlign: TextAlign.center,
           style: const TextStyle(color: SamrahColors.textMuted, fontSize: 11),
         ),

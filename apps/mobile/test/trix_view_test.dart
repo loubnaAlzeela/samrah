@@ -75,4 +75,12 @@ void main() {
     expect(g.lastResult!.seatDelta, [0, 75, -150, 0]);
     expect(contractNameAr('king'), 'شيخ الكبة');
   });
+
+  test('trix complex: two contracts per kingdom, partners variant scores by team', () {
+    expect(isTrixVariant('trixComplex'), isTrue);
+    expect(isTrixVariant('trixComplexPartners'), isTrue);
+    expect(trixContractsOf('trixComplex'), ['complex', 'trix']);
+    expect(trixContractsOf('trixPartners'), ['king', 'queens', 'diamonds', 'tricks', 'trix']);
+    expect(contractNameAr('complex'), 'كمبلكس');
+  });
 }

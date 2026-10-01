@@ -1,14 +1,16 @@
 /// What one seat sees in a Trix game (packages/rules/src/trix.ts `TrixView`),
-/// sent inside `state.game` for the 'trix' / 'trixPartners' variants. Only
+/// sent inside `state.game` for the Trix and Trix Complex variants (solo or partners). Only
 /// the viewer's own hand; doubled cards are public by the rules.
 library;
 
 import 'json_num.dart';
 import 'player_view.dart';
 
-bool isTrixVariant(String v) => v == 'trix' || v == 'trixPartners';
+bool isTrixVariant(String v) => v == 'trix' || v == 'trixPartners' || v == 'trixComplex' || v == 'trixComplexPartners';
 
-const trixContracts = ['king', 'queens', 'diamonds', 'tricks', 'trix'];
+/// The contracts of one kingdom: Trix Complex plays only complex + trix.
+List<String> trixContractsOf(String variant) =>
+    variant == 'trixComplex' || variant == 'trixComplexPartners' ? const ['complex', 'trix'] : const ['king', 'queens', 'diamonds', 'tricks', 'trix'];
 
 /// Arabic contract names.
 String contractNameAr(String c) => switch (c) {
@@ -16,6 +18,7 @@ String contractNameAr(String c) => switch (c) {
       'queens' => 'بنات',
       'diamonds' => 'ديناري',
       'tricks' => 'لطوش',
+      'complex' => 'كمبلكس',
       'trix' => 'تركس',
       _ => c,
     };
@@ -110,7 +113,7 @@ class TrixView {
     required this.winnerSeats,
   });
 
-  bool get partners => variant == 'trixPartners';
+  bool get partners => variant == 'trixPartners' || variant == 'trixComplexPartners';
 
   static List<String> _strings(Object? v) => ((v as List?) ?? const []).map((e) => e as String).toList();
   static List<int> _ints(Object? v, List<int> fallback) => ((v as List?) ?? fallback).map(asInt).toList();

@@ -7,7 +7,6 @@ import { type Action, type GameState, type Variant, act, advance, newGame } from
 import { autoAction } from './autopilot.ts';
 import { type PlayerView, viewFor } from './view.ts';
 import {
-  TRIX_CONTRACTS,
   TRIX_KINGDOMS,
   type TrixAction,
   type TrixState,
@@ -18,6 +17,7 @@ import {
   autoTrixAction,
   isTrixVariant,
   newTrixGame,
+  trixContractsOf,
   trixViewFor,
 } from './trix.ts';
 import {
@@ -63,7 +63,7 @@ import {
 } from './hand.ts';
 
 export type AnyVariant = Variant | TrixVariant | B187Variant | BalootVariant | HandVariant;
-export const ALL_VARIANTS: readonly AnyVariant[] = ['tarneeb', 'syrian41', 'tarneeb400', 'trix', 'trixPartners', 'b187', 'baloot', 'hand'];
+export const ALL_VARIANTS: readonly AnyVariant[] = ['tarneeb', 'syrian41', 'tarneeb400', 'trix', 'trixPartners', 'trixComplex', 'trixComplexPartners', 'b187', 'baloot', 'hand'];
 export function isVariant(v: unknown): v is AnyVariant {
   return (ALL_VARIANTS as readonly unknown[]).includes(v);
 }
@@ -80,7 +80,7 @@ export function seatCount(v: AnyVariant, players?: number): number {
 }
 /** Variants with two fixed teams of opposite seats (the pre-game partner picker applies). */
 export function hasTeams(v: AnyVariant): boolean {
-  return v === 'tarneeb' || v === 'syrian41' || v === 'tarneeb400' || v === 'trixPartners' || v === 'baloot';
+  return v === 'tarneeb' || v === 'syrian41' || v === 'tarneeb400' || v === 'trixPartners' || v === 'trixComplexPartners' || v === 'baloot';
 }
 
 export type AnyGame = GameState | TrixState | B187State | BalootState | HandState;
@@ -160,7 +160,10 @@ export const ACTING_PHASES: readonly string[] = ['bidding', 'trump', 'contract',
 /** How far the game is, 0..100 (for the public tables list). */
 export function gameProgress(g: AnyGame, target: number): number {
   let pct: number;
-  if (isTrixGame(g)) pct = ((g.kingdom * TRIX_CONTRACTS.length + g.used.length) / (TRIX_KINGDOMS * TRIX_CONTRACTS.length)) * 100;
+  if (isTrixGame(g)) {
+    const per = trixContractsOf(g.variant).length;
+    pct = ((g.kingdom * per + g.used.length) / (TRIX_KINGDOMS * per)) * 100;
+  }
   else if (isHandGame(g)) pct = ((g.handNo - 1) / HAND_ROUNDS) * 100;
   else if (isBalootGame(g)) pct = (Math.max(...g.teamScores) / BALOOT_TARGET) * 100;
   else if (is187Game(g)) pct = (Math.max(...g.scores.map(Math.abs)) / B187_MATCH_LIMIT) * 100;

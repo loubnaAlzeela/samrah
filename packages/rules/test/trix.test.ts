@@ -5,7 +5,7 @@ import {
   type TrixAction,
   type TrixState,
   FIRST_OWNER_CARD,
-  TRIX_CONTRACTS,
+  type TrixVariant,
   actTrix,
   advanceTrix,
   autoTrixAction,
@@ -14,6 +14,7 @@ import {
   startTrixHand,
   trickPenalties,
   trixLegal,
+  trixContractsOf,
   trixPlayable,
   trixViewFor,
 } from '../src/index.ts';
@@ -27,7 +28,7 @@ const range = (suit: 'S' | 'H' | 'D' | 'C', from: number, to: number): Card[] =>
 };
 
 /** A hand dealt from exact cards, with `owner` owning the kingdom. */
-function preset(hands: Card[][], owner: Seat = 0, variant: 'trix' | 'trixPartners' = 'trix'): TrixState {
+function preset(hands: Card[][], owner: Seat = 0, variant: TrixVariant = 'trix'): TrixState {
   const g = newTrixGame({ variant, dealer: 3 }, rng);
   return startTrixHand({ ...g, kingdomOwner: owner, handNo: 0 }, rng, { hands, dealer: ((owner + 3) % 4) as Seat });
 }
@@ -172,7 +173,7 @@ describe('trix: view', () => {
 });
 
 describe('trix: full games (autopilot)', () => {
-  function play(variant: 'trix' | 'trixPartners', seed: number) {
+  function play(variant: TrixVariant, seed: number) {
     const r = seeded(seed);
     let s = newTrixGame({ variant }, r);
     const perKingdom: string[][] = [[], [], [], []];
@@ -197,7 +198,7 @@ describe('trix: full games (autopilot)', () => {
     for (let n = 0; n < 10; n++) {
       const { s, perKingdom, owners } = play('trix', 100 + n);
       expect(s.handNo).toBe(20);
-      for (const k of perKingdom) expect([...k].sort()).toEqual([...TRIX_CONTRACTS].sort());
+      for (const k of perKingdom) expect([...k].sort()).toEqual([...trixContractsOf('trix')].sort());
       expect(owners.map((o, i) => (o - owners[0] + 4) % 4 === i)).toEqual([true, true, true, true]);
       expect(s.winnerSeats.length).toBeGreaterThan(0);
       expect(s.winnerSeats.every((w) => s.seatScores[w] === Math.max(...s.seatScores))).toBe(true);
@@ -207,5 +208,83 @@ describe('trix: full games (autopilot)', () => {
     const { s } = play('trixPartners', 7);
     expect(s.teamScores).toEqual([s.seatScores[0] + s.seatScores[2], s.seatScores[1] + s.seatScores[3]]);
     if (s.teamScores[0] !== s.teamScores[1]) expect(s.winner).toBe(s.teamScores[0] > s.teamScores[1] ? 0 : 1);
+  });
+});
+
+describe('trix complex', () => {
+  it('two contracts per kingdom: complex and trix; the classic ones are refused', () => {
+    const s = preset(KING_HANDS, 0, 'trixComplex');
+    expect(trixViewFor(s, 0).contractsLeft).toEqual(['complex', 'trix']);
+    expect(actTrix(s, 0, { type: 'contract', contract: 'king' })).toEqual({ ok: false, error: 'badContract' });
+    expect(actTrix(preset(KING_HANDS, 0, 'trix'), 0, { type: 'contract', contract: 'complex' })).toEqual({ ok: false, error: 'badContract' });
+  });
+  it('complex: K♥ and Queen holders may double, in turn from the owner', () => {
+    // seat0: Q♠ · seat1: K♥ · seat2: Q♥ · seat3: Q♣ (Q♦ sits with seat2 too)
+    const hands: Card[][] = [
+      [...range('S', 2, 12), 'S14', 'H14'],
+      ['H13', ...range('D', 2, 11), 'D13', 'D14'],
+      [...range('H', 2, 12), 'D12', 'C14'],
+      range('C', 2, 13).concat(['S13']),
+    ];
+    let s = must(preset(hands, 0, 'trixComplex'), 0, { type: 'contract', contract: 'complex' });
+    expect(s.phase).toBe('double');
+    expect(s.doubleQueue).toEqual([0, 1, 2, 3]);
+    expect(trixViewFor(s, 0).doubleOptions).toEqual(['S12']);
+    s = must(s, 0, { type: 'double', cards: [] });
+    expect(trixViewFor(s, 1).doubleOptions).toEqual(['H13']);
+    s = must(s, 1, { type: 'double', cards: ['H13'] });
+    s = must(s, 2, { type: 'double', cards: ['H12', 'D12'] });
+    s = must(s, 3, { type: 'double', cards: [] });
+    expect(s.doubled.map((d) => d.card)).toEqual(['H13', 'H12', 'D12']);
+    expect(s.phase).toBe('playing');
+    expect(s.turn).toBe(0);
+  });
+  it('complex scores every penalty at once: K♥, Queens, diamonds and tricks, with doubles', () => {
+    const taken: Card[][] = [['S12', 'H12', 'D3'], ['D14', 'D2', 'D5'], ['H13'], []];
+    const tricks = [3, 4, 5, 1];
+    // seat0: Q♠ -25, Q♥ doubled by seat3 -50, D3 -10, 3 tricks -45 = -130
+    // seat1: 3 diamonds -30, 4 tricks -60 = -90 · seat2: K♥ -75, 5 tricks -75 = -150 · seat3: 1 trick -15, bonus +25 = +10
+    expect(trickPenalties('complex', taken, tricks, [{ card: 'H12', seat: 3 }])).toEqual([-130, -90, -150, 10]);
+  });
+  it('a full kingdom without doubles adds up to zero: complex −370, trix +500', () => {
+    let s = preset(newTrixGame({ variant: 'trix' }, seeded(5)).hands, 0, 'trixComplex');
+    s = must(s, 0, { type: 'contract', contract: 'complex' });
+    while (s.phase === 'double') s = must(s, s.turn, { type: 'double', cards: [] });
+    while (s.phase !== 'handOver') s = s.phase === 'trickDone' ? advanceTrix(s, rng) : must(s, s.turn, autoTrixAction(s, s.turn));
+    expect(s.tricks.reduce((a, b) => a + b, 0)).toBe(13); // complex never stops early
+    expect(s.lastResult!.seatDelta.reduce((a, b) => a + b, 0)).toBe(-(75 + 100 + 130 + 195));
+  });
+});
+
+describe('trix complex: full games (autopilot)', () => {
+  function playOut(variant: TrixVariant, seed: number) {
+    const r = seeded(seed);
+    let s = newTrixGame({ variant }, r);
+    const perKingdom: string[][] = [[], [], [], []];
+    for (let steps = 0; s.phase !== 'gameOver'; steps++) {
+      if (steps > 20_000) throw new Error('did not finish');
+      if (s.phase === 'trickDone' || s.phase === 'handOver') {
+        s = advanceTrix(s, r);
+        continue;
+      }
+      const a = autoTrixAction(s, s.turn);
+      if (a.type === 'contract') perKingdom[s.kingdom].push(a.contract);
+      s = must(s, s.turn, a);
+    }
+    return { s, perKingdom };
+  }
+  it('solo: 4 kingdoms x 2 contracts = 8 hands', { timeout: 60_000 }, () => {
+    for (let n = 0; n < 10; n++) {
+      const { s, perKingdom } = playOut('trixComplex', 300 + n);
+      expect(s.handNo).toBe(8);
+      for (const k of perKingdom) expect([...k].sort()).toEqual(['complex', 'trix']);
+      expect(s.winnerSeats.every((w) => s.seatScores[w] === Math.max(...s.seatScores))).toBe(true);
+    }
+  });
+  it('partners: opposite seats add up, the winning team is decided', () => {
+    const { s } = playOut('trixComplexPartners', 9);
+    expect(s.teamScores).toEqual([s.seatScores[0] + s.seatScores[2], s.seatScores[1] + s.seatScores[3]]);
+    if (s.teamScores[0] !== s.teamScores[1]) expect(s.winner).toBe(s.teamScores[0] > s.teamScores[1] ? 0 : 1);
+    else expect(s.winner).toBeNull();
   });
 });
