@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/sound.dart';
 import 'theme/samrah_theme.dart';
 
@@ -28,7 +29,7 @@ class SamrahApp extends StatelessWidget {
       themeMode: ThemeMode.dark,
       locale: const Locale('ar'),
       builder: (context, child) => Directionality(textDirection: TextDirection.rtl, child: child!),
-      home: const LoginScreen(),
+      home: const SplashScreen(next: LoginScreen()),
     );
   }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SamrahColors.bg: shown by Android before Flutter draws the splash -->
+    <color name="samrah_bg">#2B221E</color>
+    <!-- the app icon's background on the home screen -->
+    <color name="ic_launcher_background">#000000</color>
+</resources>
