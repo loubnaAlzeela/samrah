@@ -228,7 +228,7 @@ class _GameScreenState extends State<GameScreen> with TurnClock {
             child: SeatAvatar(name: name(me), size: _avatarSize, turn: myTurn && acting && !meAuto, frac: frac),
           ),
           Positioned(left: 64 - 45, top: 742, child: NamePill(text: name(me), width: 90, highlight: true)),
-          if (g.dealer == me) const Positioned(left: 98, top: 684, child: DealerTag()),
+          if (g.dealer == me) const Positioned(left: 14, top: 676, child: DealerTag()), // left of my avatar, clear of the chat icon
           Positioned(left: 111, top: 676, child: _iconBtn(Icons.chat_bubble_outline, 'الدردشة')),
           Positioned(left: 111, top: 724, child: _iconBtn(Icons.card_giftcard, 'الهدايا')),
           Positioned(left: 168, top: 679, child: _infoRow('أكلات', Text(syrian ? '${g.tricks[me]}' : '${g.tricks[me] + g.tricks[(me + 2) % 4]}', style: _infoValue))),

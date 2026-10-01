@@ -189,7 +189,7 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
           Positioned(left: 64 - _avatarSize / 2, top: 708 - _avatarSize / 2, child: SeatAvatar(name: name(me), size: _avatarSize, turn: myTurn && acting && !meAuto, frac: frac)),
           Positioned(left: 64 - 45, top: 742, child: NamePill(text: name(me), width: 90, highlight: true)),
           if (g.buyer == me) const Positioned(left: 88, top: 676, child: _Tag('المشتري')),
-          if (g.dealer == me) const Positioned(left: 98, top: 700, child: DealerTag()),
+          if (g.dealer == me) const Positioned(left: 14, top: 676, child: DealerTag()), // left of my avatar, clear of the chat icon
           Positioned(left: 111, top: 676, child: _iconBtn(Icons.chat_bubble_outline, 'الدردشة')),
           Positioned(left: 111, top: 724, child: _iconBtn(Icons.card_giftcard, 'الهدايا')),
           Positioned(left: 168, top: 682, child: _infoRow('النتيجة', '${g.scores[me]}')),

@@ -447,7 +447,7 @@ class _RoomScreenState extends State<RoomScreen> {
           ),
         Expanded(
           child: v.status == 'waiting'
-              ? WaitingScreen(view: v, conn: conn)
+              ? WaitingScreen(view: v, onStart: () => conn.send('start'), onInvite: _openInvite)
               : isTrixVariant(v.variant)
               ? TrixGameScreen(view: v, conn: conn)
               : isB187Variant(v.variant)
