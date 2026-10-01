@@ -82,9 +82,12 @@ streams, so screens never touch the transport directly. Check a server
 from the command line with the app's own client:
 `dart run tool/verify_connection.dart wss://samrah-production.up.railway.app baloot 8`.
 
-## Server address (never hard-coded)
+## Server address
 
-Set at build/run time with `--dart-define`:
+Defaults to the live server, `wss://samrah-production.up.railway.app`
+(`lib/screens/room_screen.dart`, `kGameServer`), so a plain
+`flutter run` / `flutter build apk --release` plays online. For a local
+server, override it at build/run time with `--dart-define`:
 
 ```sh
 flutter run --dart-define=GAME_SERVER=ws://<dev-machine-lan-ip>:2567
@@ -96,9 +99,8 @@ flutter build apk --dart-define=GAME_SERVER=ws://<dev-machine-lan-ip>:2567
 profile builds also allow plain `ws://`, for a server on your machine.
 The live server: `wss://samrah-production.up.railway.app`.
 
-Default (`lib/screens/room_screen.dart`, `kGameServer` constant) is
-`ws://10.0.2.2:2567` — the Android emulator's alias for the host machine's
-`localhost`. **A real phone on Wi-Fi needs the dev machine's actual LAN IP**
+For a local server, the Android emulator reaches the host machine at
+`ws://10.0.2.2:2567`. **A real phone on Wi-Fi needs the dev machine's actual LAN IP**
 (`ipconfig` → IPv4 address), not `10.0.2.2` and not `localhost`.
 
 ## Build & run

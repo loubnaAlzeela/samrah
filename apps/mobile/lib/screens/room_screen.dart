@@ -32,9 +32,9 @@ String variantNameAr(String v) => switch (v) {
   _ => 'طرنيب',
 };
 
-/// Falls back to the Android-emulator loopback alias. A real phone on the
-/// same network needs the dev machine's LAN IP passed via --dart-define.
-const String kGameServer = String.fromEnvironment('GAME_SERVER', defaultValue: 'ws://10.0.2.2:2567');
+/// Defaults to the live server on Railway. A local server needs --dart-define
+/// (the emulator reaches the dev machine at ws://10.0.2.2:2567, a phone at its LAN IP).
+const String kGameServer = String.fromEnvironment('GAME_SERVER', defaultValue: 'wss://samrah-production.up.railway.app');
 
 /// One client for the whole app (created on first use): its connection pool
 /// outlives any single table, so the home screen can warm it up and every
