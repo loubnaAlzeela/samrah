@@ -3,10 +3,12 @@ import {
   type B187Action,
   type B187State,
   B187_MATCH_LIMIT,
+  B187_MIN_HAND_POINTS,
   act187,
   advance187,
   auto187Action,
   b187Deck,
+  b187JustRevealed,
   b187Legal,
   b187Opponents,
   b187Points,
@@ -14,6 +16,7 @@ import {
   b187ViewFor,
   min187Bid,
   new187Game,
+  start187Hand,
 } from '../src/index.ts';
 import { seeded } from './helpers.ts';
 
@@ -51,6 +54,29 @@ describe('187: cards and deal', () => {
     expect(five.field).toHaveLength(5);
     expect(new Set([...five.hands.flat(), ...five.field]).size).toBe(40);
   });
+  it('a deal where any hand holds under 12 points is thrown in and dealt again', () => {
+    const worth = (h: string[]) => h.reduce((a, c) => a + b187Points(c as never), 0);
+    let seen = 0;
+    for (let seed = 0; seed < 60; seed++) {
+      for (const players of [4, 5]) {
+        const s = new187Game({ players }, seeded(seed));
+        for (const h of s.hands) expect(worth(h)).toBeGreaterThanOrEqual(B187_MIN_HAND_POINTS);
+        for (const r of s.redeals) {
+          expect(r.short.length).toBeGreaterThan(0);
+          for (const x of r.short) expect(x.points).toBeLessThan(B187_MIN_HAND_POINTS);
+        }
+        expect(b187ViewFor(s, 0).redeals).toEqual(s.redeals);
+        seen += s.redeals.length;
+      }
+    }
+    expect(seen).toBeGreaterThan(0); // some deal in 120 needed a redeal
+  });
+  it('the next hand forgets earlier redeals', () => {
+    const s = new187Game({ players: 4 }, seeded(1));
+    const next = start187Hand({ ...s, redeals: [{ short: [{ seat: 0, points: 4 }] }] }, seeded(2), 1);
+    for (const r of next.redeals) expect(r.short.every((x) => x.points < 12)).toBe(true);
+    expect(next.redeals).not.toContainEqual({ short: [{ seat: 0, points: 4 }] });
+  });
 });
 
 describe('187: auction', () => {
@@ -70,7 +96,10 @@ describe('187: auction', () => {
     s = must(s, 1, { type: 'bid', value: 135 });
     expect(b187ViewFor(s, 3).field).toEqual([]);
     s = must(s, 2, { type: 'bid', value: 140 });
-    expect(b187ViewFor(s, 3).field).toEqual(s.field);
+    expect(b187ViewFor(s, 3).field).toEqual(s.field);    expect(b187JustRevealed(s)).toBe(true); // the table pauses on the face-up field
+    s = must(s, 3, { type: 'bid', value: 'pass' });
+    expect(b187JustRevealed(s)).toBe(false);
+    expect(s.phase).toBe('bidding'); // reaching 140 does not end the auction
   });
   it('everyone else withdraws without a bid: the last one buys at 87 and takes the field', () => {
     let s = new187Game({ players: 4, dealer: 0 }, seeded(5));
@@ -91,26 +120,48 @@ describe('187: auction', () => {
 });
 
 describe('187: give back and trump', () => {
-  it('the buyer gives one card to each opponent, in turn order', () => {
+  it('the buyer gives one card to each opponent, in turn order; the player right of the dealer leads', () => {
     let s = new187Game({ players: 4, dealer: 0 }, seeded(7));
-    s = must(s, 1, { type: 'bid', value: 100 });
-    for (const seat of [2, 3, 0]) s = must(s, seat, { type: 'bid', value: 'pass' });
-    const give = s.hands[1].slice(0, 3);
-    expect(act187(s, 1, { type: 'give', cards: give.slice(0, 2) })).toEqual({ ok: false, error: 'badGive' });
-    s = must(s, 1, { type: 'give', cards: give });
-    expect(b187Opponents(s)).toEqual([2, 3, 0]);
-    expect(s.hands[2]).toContain(give[0]);
-    expect(s.hands[3]).toContain(give[1]);
-    expect(s.hands[0]).toContain(give[2]);
+    s = must(s, 1, { type: 'bid', value: 'pass' });
+    s = must(s, 2, { type: 'bid', value: 100 });
+    for (const seat of [3, 0]) s = must(s, seat, { type: 'bid', value: 'pass' });
+    expect(s.buyer).toBe(2);
+    const give = s.hands[2].slice(0, 3);
+    expect(act187(s, 2, { type: 'give', cards: give.slice(0, 2) })).toEqual({ ok: false, error: 'badGive' });
+    s = must(s, 2, { type: 'give', cards: give });
+    expect(b187Opponents(s)).toEqual([3, 0, 1]);
+    expect(s.hands[3]).toContain(give[0]);
+    expect(s.hands[0]).toContain(give[1]);
+    expect(s.hands[1]).toContain(give[2]);
     expect(s.hands.map((h) => h.length)).toEqual([10, 10, 10, 10]);
     expect(s.phase).toBe('trump');
-    s = must(s, 1, { type: 'trump', suit: 'S' });
+    s = must(s, 2, { type: 'trump', suit: 'S' });
     expect(s.phase).toBe('playing');
-    expect(s.turn).toBe(1);
+    expect(s.turn).toBe(1); // right of the dealer, not the buyer
+  });
+  it('5 players: the buyer ends with 8 cards like everyone else', () => {
+    let s = new187Game({ players: 5, dealer: 2 }, seeded(8));
+    s = must(s, 3, { type: 'bid', value: 187 });
+    expect(s.hands[3]).toHaveLength(12);
+    s = must(s, 3, { type: 'give', cards: s.hands[3].slice(0, 4) });
+    expect(s.hands.map((h) => h.length)).toEqual([8, 8, 8, 8, 8]);
   });
 });
 
 describe('187: tricks', () => {
+  it('each trick is led by the next seat in turn, whoever won the last one', () => {
+    let s = new187Game({ players: 4, dealer: 3 }, seeded(11));
+    s = must(s, 0, { type: 'bid', value: 187 });
+    s = must(s, 0, { type: 'give', cards: s.hands[0].slice(0, 3) });
+    s = must(s, 0, { type: 'trump', suit: 'H' });
+    for (let t = 0; t < 10; t++) {
+      expect(s.phase).toBe('playing');
+      expect(s.turn).toBe(t % 4);
+      for (let k = 0; k < 4; k++) s = must(s, s.turn, auto187Action(s, s.turn));
+      expect(s.phase).toBe('trickDone');
+      s = advance187(s, seeded(1));
+    }
+  });
   it('2 is the strongest card of its suit, then A, K, 10, Q, J…; trump beats the led suit', () => {
     expect(b187TrickWinner([{ seat: 0, card: 'D14' }, { seat: 1, card: 'D2' }, { seat: 2, card: 'D13' }], 'S')).toBe(1);
     expect(b187TrickWinner([{ seat: 0, card: 'D10' }, { seat: 1, card: 'D12' }], null)).toBe(0);

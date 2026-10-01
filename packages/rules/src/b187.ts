@@ -5,6 +5,9 @@
  * The auction («السوم») runs from 87 to 187; the winner («المشتري») takes the face-down field, hands one hidden
  * card back to each opponent, names the trump («الحكم») and plays alone against everyone. They lose when the
  * opponents collect more than 187 − bid. First to reach +312 or −312 ends the match.
+ *
+ * A deal where any hand is worth less than 12 points is void and dealt again. The player right of the dealer
+ * leads the first trick, and the lead then passes round the table in seat order (not to the trick's winner).
  */
 import { type Card, type RandInt, type Suit, SUITS, card, isCard, rankOf, shuffle, suitOf } from './cards.ts';
 
@@ -25,6 +28,8 @@ export const B187_MIN_BID = 87;
 /** Once the bid reaches this, the field is shown face up to everyone. */
 export const B187_REVEAL_AT = 140;
 export const B187_MATCH_LIMIT = 312;
+/** A deal is void (and dealt again) when any hand is worth less than this. */
+export const B187_MIN_HAND_POINTS = 12;
 
 export function b187Power(c: Card): number {
   return POWER[rankOf(c)];
@@ -91,8 +96,14 @@ export interface B187State {
   scores: number[];
   lastResult: B187Result | null;
   winnerSeats: number[];
+  /** void deals thrown in before this hand's deal: the seats under 12 points in each, in order */
+  redeals: B187Redeal[];
   /** kept for the shared game interface (unused: 187 has no teams) */
   teamScores: [number, number];
+}
+
+export interface B187Redeal {
+  short: { seat: number; points: number }[];
 }
 
 export type B187Action =
@@ -132,6 +143,7 @@ export function new187Game(opts: { players?: number; dealer?: number }, randInt:
     scores: Array(players).fill(0),
     lastResult: null,
     winnerSeats: [],
+    redeals: [],
     teamScores: [0, 0],
   };
   return start187Hand(base, randInt, dealer);
@@ -142,16 +154,25 @@ export function start187Hand(prev: B187State, randInt: RandInt, dealer: number, 
   const n = prev.players;
   let hands: Card[][];
   let field: Card[];
+  const redeals: B187Redeal[] = [];
   if (preset) {
     hands = preset.hands.map((h) => h.slice());
     field = preset.field.slice();
   } else {
-    const deck = shuffle(b187Deck(), randInt);
-    const size = handSize(n);
-    hands = Array.from({ length: n }, () => [] as Card[]);
-    // one card at a time, starting right of the dealer
-    for (let i = 0; i < size * n; i++) hands[(dealer + 1 + (i % n)) % n].push(deck[i]);
-    field = deck.slice(size * n);
+    for (;;) {
+      const deck = shuffle(b187Deck(), randInt);
+      const size = handSize(n);
+      hands = Array.from({ length: n }, () => [] as Card[]);
+      // one card at a time, starting right of the dealer
+      for (let i = 0; i < size * n; i++) hands[(dealer + 1 + (i % n)) % n].push(deck[i]);
+      field = deck.slice(size * n);
+      const short = hands.flatMap((h, seat) => {
+        const points = h.reduce((a, c) => a + b187Points(c), 0);
+        return points < B187_MIN_HAND_POINTS ? [{ seat, points }] : [];
+      });
+      if (short.length === 0) break;
+      redeals.push({ short });
+    }
   }
   return {
     ...structuredClone(prev),
@@ -170,6 +191,7 @@ export function start187Hand(prev: B187State, randInt: RandInt, dealer: number, 
     lastTrick: null,
     tricks: Array(n).fill(0),
     taken: Array.from({ length: n }, () => [] as Card[]),
+    redeals,
   };
 }
 
@@ -182,6 +204,13 @@ export function min187Bid(s: B187State): number {
 
 export function fieldRevealed(s: B187State): boolean {
   return !!s.highBid && s.highBid.value >= B187_REVEAL_AT;
+}
+
+/** The last bid is the one that reached 140 and turned the field face up (the table pauses to look at it). */
+export function b187JustRevealed(s: B187State): boolean {
+  if (s.phase !== 'bidding' || !fieldRevealed(s)) return false;
+  const bids = s.bidLog.flatMap((b) => (b.bid === 'pass' ? [] : [b.bid]));
+  return bids.length > 0 && s.bidLog[s.bidLog.length - 1].bid === bids[bids.length - 1] && bids.filter((v) => v >= B187_REVEAL_AT).length === 1;
 }
 
 /** Must follow the led suit when able; otherwise any card (trump or not). */
@@ -218,7 +247,7 @@ export function act187(prev: B187State, seat: number, a: B187Action): B187ActRes
       if (!SUITS.includes(a.suit)) return { ok: false, error: 'badSuit' };
       s.trump = a.suit;
       s.phase = 'playing';
-      s.turn = seat; // the buyer leads
+      s.turn = (s.dealer + 1) % s.players; // the player right of the dealer leads, whoever bought
       return { ok: true, state: s };
     case 'play':
       return play(s, seat, a.card);
@@ -307,9 +336,10 @@ function collect(prev: B187State): B187State {
   const winner = b187TrickWinner(s.trick, s.trump);
   s.tricks[winner]++;
   s.taken[winner].push(...s.trick.map((p) => p.card));
+  const leader = s.trick[0].seat;
   s.lastTrick = { plays: s.trick, winner };
   s.trick = [];
-  s.turn = winner;
+  s.turn = next(s, leader); // the lead goes round in seat order, not to the winner
   if (s.hands.some((h) => h.length > 0)) {
     s.phase = 'playing';
     return s;
@@ -383,6 +413,8 @@ export interface B187View {
   scores: number[];
   lastResult: B187Result | null;
   winnerSeats: number[];
+  /** void deals thrown in before this hand (someone held under 12 points) */
+  redeals: B187Redeal[];
 }
 
 export function b187ViewFor(s: B187State, seat: number): B187View {
@@ -414,6 +446,7 @@ export function b187ViewFor(s: B187State, seat: number): B187View {
     scores: s.scores.slice(),
     lastResult: s.lastResult ? structuredClone(s.lastResult) : null,
     winnerSeats: s.winnerSeats.slice(),
+    redeals: structuredClone(s.redeals ?? []),
   };
 }
 
@@ -426,7 +459,8 @@ function handStrength(hand: readonly Card[]): number {
 }
 
 /**
- * - Bid: raise to the minimum while it stays under a cap derived from hand strength (never past 140), else withdraw.
+ * - Bid: raise to the minimum while it stays under a cap derived from hand strength, else withdraw. Up to 140 the
+ *   cap counts the hand alone (never past 140); once the field is face up it counts the field too (up to 165).
  * - Give: the cheapest cards (no points, weakest), from the shortest suits.
  * - Trump: the suit with the most cards, ties -> the stronger one.
  * - Play: take the trick with the cheapest winning card when it matters (points on the table, or last to play);
@@ -438,7 +472,7 @@ export function auto187Action(s: B187State, seat: number): B187Action {
   switch (s.phase) {
     case 'bidding': {
       const min = min187Bid(s);
-      const cap = Math.min(B187_REVEAL_AT, 60 + handStrength(hand));
+      const cap = fieldRevealed(s) ? Math.min(165, 45 + handStrength([...hand, ...s.field])) : Math.min(B187_REVEAL_AT, 60 + handStrength(hand));
       const others = s.passed.filter((p, i) => i !== seat && !p).length;
       if (!s.highBid && others === 0) return { type: 'bid', value: B187_MIN_BID };
       return { type: 'bid', value: min <= cap ? min : 'pass' };

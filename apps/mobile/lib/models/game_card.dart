@@ -37,9 +37,10 @@ const Map<CardSuit, String> suitNameAr = {
 /// Display order for the hand: trump
 /// suit first once declared, then ♠ ♥ ♣ ♦ (alternating colours), high to low.
 /// [power] replaces the plain rank order inside a suit (Baloot: 10 above K).
-List<String> sortForDisplay(List<String> hand, String? trump, {int Function(String card)? power}) {
+/// [suitOrder] replaces the whole suit order (187: ♥ ♦ ♠ ♣ with the trump first).
+List<String> sortForDisplay(List<String> hand, String? trump, {int Function(String card)? power, List<String>? suitOrder}) {
   const base = ['S', 'H', 'C', 'D'];
-  final order = trump != null ? [trump, ...base.where((s) => s != trump)] : base;
+  final order = suitOrder ?? (trump != null ? [trump, ...base.where((s) => s != trump)] : base);
   final sorted = [...hand];
   sorted.sort((a, b) {
     final bySuit = order.indexOf(a[0]) - order.indexOf(b[0]);

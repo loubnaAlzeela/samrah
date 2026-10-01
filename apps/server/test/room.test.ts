@@ -5,6 +5,8 @@ import { TestPlayer, sleep, waitFor } from './helpers.ts';
 // short test timings (must be set before the room module is loaded)
 process.env.LAMMA_TURN_SECONDS = '0.25';
 process.env.LAMMA_AUTO_MOVE_MS = '10';
+process.env.LAMMA_AUTO_BID_MS = '10';
+process.env.LAMMA_REVEAL_PAUSE_MS = '10';
 process.env.LAMMA_TRICK_PAUSE_MS = '10';
 process.env.LAMMA_HAND_PAUSE_MS = '400';
 process.env.LAMMA_RECONNECT_SECONDS = '2';

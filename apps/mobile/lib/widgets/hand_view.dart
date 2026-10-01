@@ -12,7 +12,7 @@ import 'motion.dart';
 import 'playing_card_view.dart';
 
 class HandView extends StatefulWidget {
-  const HandView({super.key, required this.cards, required this.trump, required this.legal, required this.onPlay, this.width = 378, this.picked, this.onPick, this.power});
+  const HandView({super.key, required this.cards, required this.trump, required this.legal, required this.onPlay, this.width = 378, this.picked, this.onPick, this.power, this.suitOrder});
 
   /// Pick mode (187, handing cards back): when [onPick] is set, a tap toggles
   /// a card instead of playing it, and [picked] cards are shown raised.
@@ -25,6 +25,9 @@ class HandView extends StatefulWidget {
   /// Strength of a card inside its suit, for games that do not rank by face
   /// value (Baloot); null = plain rank order.
   final int Function(String card)? power;
+
+  /// Suit order left to right; null = trump first, then ♠ ♥ ♣ ♦.
+  final List<String>? suitOrder;
 
   /// Cards that may be played now; null when it isn't my turn to play
   /// (no dimming, no dragging).
@@ -94,7 +97,7 @@ class _HandViewState extends State<HandView> {
   @override
   Widget build(BuildContext context) {
     const cw = HandView.cardWidth;
-    final sorted = sortForDisplay(widget.cards, widget.trump, power: widget.power);
+    final sorted = sortForDisplay(widget.cards, widget.trump, power: widget.power, suitOrder: widget.suitOrder);
     final n = sorted.length;
     final step = n > 1 ? ((widget.width - cw) / (n - 1)).clamp(0.0, 44.0) : 0.0;
     final offset = (widget.width - (cw + step * (n - 1))) / 2;

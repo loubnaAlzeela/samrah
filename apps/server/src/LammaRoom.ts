@@ -22,6 +22,7 @@ import {
   actAny,
   advanceAny,
   autoActionAny,
+  b187JustRevealed,
   CHAT_RATE_MS,
   filterChat,
   gameProgress,
@@ -45,6 +46,10 @@ const TURN_SECONDS_OVERRIDE = process.env.LAMMA_TURN_SECONDS ? num(process.env.L
 export const MAX_TIMEOUTS = 3;
 /** Delay before the autopilot / a computer player moves (so humans can follow the play). */
 const AUTO_MOVE_MS = num(process.env.LAMMA_AUTO_MOVE_MS, 900);
+/** a computer's bid in 187: slower than a card, so people can follow the auction */
+const AUTO_BID_MS = num(process.env.LAMMA_AUTO_BID_MS, 1600);
+/** 187: the bid just reached 140 and the field turned face up; the next computer move waits so everyone can look */
+const REVEAL_PAUSE_MS = num(process.env.LAMMA_REVEAL_PAUSE_MS, 4500);
 const TRICK_PAUSE_MS = num(process.env.LAMMA_TRICK_PAUSE_MS, 1200);
 const HAND_PAUSE_MS = num(process.env.LAMMA_HAND_PAUSE_MS, 5000);
 const EMPTY_ROOM_DISPOSE_MS = RECONNECT_SECONDS * 1000;
@@ -598,6 +603,11 @@ export class LammaRoom extends Room {
     return (TURN_SECONDS_OVERRIDE ?? SPEED_SECONDS[this.settings.speed]) * 1000;
   }
 
+  private autoMoveMs(g: AnyGame): number {
+    if (g.variant !== 'b187' || g.phase !== 'bidding') return AUTO_MOVE_MS;
+    return b187JustRevealed(g) ? REVEAL_PAUSE_MS : AUTO_BID_MS;
+  }
+
   /** (Re)start the timer for whoever is to act now. */
   private scheduleTurn() {
     this.turnTimer?.clear();
@@ -606,7 +616,7 @@ export class LammaRoom extends Room {
     const g = this.game;
     if (!g || this.status !== 'playing' || !ACTING_PHASES.includes(g.phase)) return;
     const info = this.seats[g.turn]!;
-    const ms = info.auto ? AUTO_MOVE_MS : this.turnMs();
+    const ms = info.auto ? this.autoMoveMs(g) : this.turnMs();
     this.turnDeadline = Date.now() + ms;
     this.turnTimer = this.clock.setTimeout(() => this.autoMove(!info.auto), ms);
   }

@@ -1,7 +1,7 @@
 // 187 («بيع وشراء») table on the same fixed 390×793 canvas as the other
 // games. 4 or 5 seats: with 5, two players share the top of the table.
 // Top-left: every player's running score (individual game, target ±312);
-// top-right: the current bid and trump. The middle shows the field during
+// top-right: the buyer, the bid, the trump and the phase. The middle shows the field during
 // the auction (face down until the bid reaches 140), then the trick.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -134,6 +134,7 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
           for (var slot = 1; slot < n; slot++) ..._seat(v, g, seatAt(slot), slot, name, frac, acting),
 
           if (g.phase == 'bidding' && g.fieldCount > 0) _fieldRow(g),
+          if (g.phase == 'bidding' && g.redeals.isNotEmpty) _redealNotice(g, name),
 
           for (final p in g.trick)
             TrickCard(
@@ -161,6 +162,8 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
             child: HandView(
               cards: g.myHand,
               trump: g.trump,
+              power: b187Power,
+              suitOrder: b187SuitOrder(g.trump),
               legal: myTurn && g.phase == 'playing' && !meAuto ? g.legal : null,
               onPlay: (card) => conn.send('play', {'card': card}),
               picked: giving ? _picked : null,
@@ -310,37 +313,72 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
     );
   }
 
+  static const _phaseNames = {
+    'bidding': 'المزايدة',
+    'give': 'إرجاع الأوراق',
+    'trump': 'اختيار الحكم',
+    'playing': 'اللعب',
+    'trickDone': 'اللعب',
+    'lossChoice': 'الحساب',
+    'handOver': 'نهاية الجولة',
+    'gameOver': 'انتهت المباراة',
+  };
+
+  /// المشتري | السوم | الحكم | المرحلة — always on screen. During the auction the first line is the top bidder.
   Widget _bidInfo(B187View g, String Function(int) name) {
     final hb = g.highBid;
+    const label = TextStyle(color: SamrahColors.textMuted, fontSize: 11);
+    const value = TextStyle(color: SamrahColors.text, fontSize: 12, fontWeight: FontWeight.w700);
+    Widget line(String l, Widget v) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1.5),
+          child: Row(children: [Text(l, style: label), const Spacer(), v]),
+        );
+    Widget text(String t) => Flexible(child: Text(t, maxLines: 1, overflow: TextOverflow.ellipsis, style: value));
+    final buyer = g.buyer ?? hb?.seat;
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _chip(Row(mainAxisSize: MainAxisSize.min, children: [
-            const Text('السوم ', style: TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
-            Text(hb == null ? '-' : '${hb.value}', style: const TextStyle(color: SamrahColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
-            if (hb != null) Text(' · ${name(hb.seat)}', style: const TextStyle(color: SamrahColors.textMuted, fontSize: 11)),
-          ])),
-          if (g.trump != null) ...[
-            const SizedBox(height: 6),
-            _chip(Row(mainAxisSize: MainAxisSize.min, children: [
-              const Text('الحكم ', style: TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
-              SuitChip(suit: g.trump!, size: 20),
-            ])),
+      child: Container(
+        width: 128,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(color: SamrahColors.scorebox, borderRadius: BorderRadius.circular(10), border: Border.all(color: SamrahColors.line)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            line(g.buyer == null ? 'أعلى سوم' : 'المشتري', text(buyer == null ? '-' : name(buyer))),
+            line('السوم', Text(hb == null ? '-' : '${hb.value}', textDirection: TextDirection.ltr, style: value)),
+            line('الحكم', g.trump == null ? const Text('-', style: value) : SuitChip(suit: g.trump!, size: 16)),
+            line('المرحلة', text(_phaseNames[g.phase] ?? '')),
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _chip(Widget child) => Container(
-        height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: SamrahColors.scorebox, borderRadius: BorderRadius.circular(8)),
-        child: child,
-      );
+  /// Why the cards were dealt again: who held under 12 points (the latest void deal, and how many there were).
+  Widget _redealNotice(B187View g, String Function(int) name) {
+    final last = g.redeals.last;
+    final who = last.short.length == 1
+        ? 'اللاعب ${name(last.short.first.seat)} لديه ${last.short.first.points} بنط فقط'
+        : last.short.map((x) => '${name(x.seat)} لديه ${x.points} بنط').join('، و');
+    final times = g.redeals.length > 1 ? ' (أُعيد التوزيع ${g.redeals.length} مرات)' : '';
+    return Positioned(
+      left: _tableL + 12,
+      width: _tableW - 24,
+      top: _tableT + 248,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(color: SamrahColors.panel, borderRadius: BorderRadius.circular(10), border: Border.all(color: SamrahColors.line)),
+          child: Text(
+            'إعادة توزيع الورق: $who، والحد الأدنى 12 بنط.$times',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: SamrahColors.text, fontSize: 11.5, height: 1.4),
+          ),
+        ),
+      ),
+    );
+  }
 
   /// The field in the middle during the auction: face down, or face up from 140.
   Widget _fieldRow(B187View g) {
@@ -442,6 +480,15 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(hb == null ? 'افتح السوم من 87' : 'أعلى سوم: ${hb.value} (${name(hb.seat)})', style: const TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
+        if (hb == null && g.redeals.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'أُعيد التوزيع: ${g.redeals.last.short.map((x) => '${name(x.seat)} ${x.points} بنط').join('، ')} (الحد الأدنى 12)',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: SamrahColors.onTableAccent, fontSize: 11),
+            ),
+          ),
         const SizedBox(height: 10),
         Directionality(
           textDirection: TextDirection.ltr,

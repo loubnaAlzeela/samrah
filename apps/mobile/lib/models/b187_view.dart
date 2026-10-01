@@ -19,6 +19,32 @@ int b187Points(String card) {
   };
 }
 
+/// Trick strength inside a suit: 2 > A > K > 10 > Q > J > 9 > 8 > 7 > 6.
+int b187Power(String card) => switch (int.parse(card.substring(1))) {
+      2 => 10,
+      14 => 9,
+      13 => 8,
+      10 => 7,
+      12 => 6,
+      11 => 5,
+      final r => r - 5, // 9..6 -> 4..1
+    };
+
+/// Hand order before a trump is named: ♥ ♦ ♠ ♣; once named, the trump suit moves to the front.
+List<String> b187SuitOrder(String? trump) {
+  const base = ['H', 'D', 'S', 'C'];
+  return trump == null ? base : [trump, ...base.where((s) => s != trump)];
+}
+
+/// One void deal: the seats that held under 12 points.
+class B187Redeal {
+  final List<({int seat, int points})> short;
+  B187Redeal(this.short);
+  static B187Redeal fromJson(Map json) => B187Redeal([
+        for (final e in (json['short'] as List?) ?? const []) (seat: asInt((e as Map)['seat']), points: asInt(e['points'])),
+      ]);
+}
+
 class B187Bid {
   final int seat;
 
@@ -79,6 +105,9 @@ class B187View {
   final B187Result? lastResult;
   final List<int> winnerSeats;
 
+  /// void deals thrown in before this hand (someone held under 12 points)
+  final List<B187Redeal> redeals;
+
   B187View({
     required this.variant,
     required this.players,
@@ -106,6 +135,7 @@ class B187View {
     required this.scores,
     required this.lastResult,
     required this.winnerSeats,
+    this.redeals = const [],
   });
 
   /// Last bid a seat made this auction, or null.
@@ -146,5 +176,6 @@ class B187View {
         scores: _ints(json['scores']),
         lastResult: json['lastResult'] != null ? B187Result.fromJson(json['lastResult'] as Map) : null,
         winnerSeats: _ints(json['winnerSeats']),
+        redeals: ((json['redeals'] as List?) ?? const []).map((e) => B187Redeal.fromJson(e as Map)).toList(),
       );
 }

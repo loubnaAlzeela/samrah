@@ -1,6 +1,8 @@
 // A 187 room's `state.game` is a B187View: RoomView must route it to `b187`
 // by variant, keep 5-seat lists intact, and survive msgpack int/double.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/models/b187_view.dart';
+import 'package:mobile/models/game_card.dart';
 import 'package:mobile/models/room_view.dart';
 
 void main() {
@@ -63,5 +65,22 @@ void main() {
     expect(b187Points('H2'), 25);
     expect(b187Points('D14'), 11);
     expect(b187Points('C9'), 0);
+  });
+
+  test('187 hand order: ♥ ♦ ♠ ♣, 2 > A > K > 10 > Q > J, trump first once named', () {
+    final hand = ['C6', 'S10', 'H14', 'D2', 'H2', 'H10', 'H13', 'S12', 'H11'];
+    final sort = (String? t) => sortForDisplay(hand, t, power: b187Power, suitOrder: b187SuitOrder(t));
+    expect(sort(null), ['H2', 'H14', 'H13', 'H10', 'H11', 'D2', 'S10', 'S12', 'C6']);
+    expect(sort('S'), ['S10', 'S12', 'H2', 'H14', 'H13', 'H10', 'H11', 'D2', 'C6']);
+  });
+
+  test('187 redeals parse', () {
+    final r = B187Redeal.fromJson({
+      'short': [
+        {'seat': 2, 'points': 8},
+        {'seat': 4, 'points': 11.0},
+      ],
+    });
+    expect(r.short.map((x) => (x.seat, x.points)), [(2, 8), (4, 11)]);
   });
 }
