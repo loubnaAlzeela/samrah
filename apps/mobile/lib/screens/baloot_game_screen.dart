@@ -270,6 +270,16 @@ class _BalootGameScreenState extends State<BalootGameScreen> with TurnClock {
       if (ps.isNotEmpty) note = ps.map((p) => balootProjectAr(p.kind) + (p.counts == false ? ' ✗' : '')).join(' · ');
     }
 
+    // the second lap: the scoring team lays its project cards open under the seat
+    final shown = g.phase == 'playing' || g.phase == 'trickDone'
+        ? g.trickNo == 1
+            ? [for (final p in g.projects.where((p) => p.seat == s && p.cards != null)) ...p.cards!]
+            : const <String>[]
+        : const <String>[];
+    const showW = 24.0, showStep = 14.0;
+    final stripW = shown.isEmpty ? 0.0 : showW + (shown.length - 1) * showStep;
+    final stripL = (c.dx - stripW / 2).clamp(4.0, _stageW - 4 - stripW);
+
     return [
       if (g.handCounts[s] > 0) Positioned(left: c.dx - fanBox / 2, top: c.dy - fanBox / 2, child: SeatFan(mirror: slot == 1)),
       Positioned(
@@ -281,6 +291,20 @@ class _BalootGameScreenState extends State<BalootGameScreen> with TurnClock {
       if (g.buyer == s) Positioned(left: c.dx + 16, top: c.dy - _avatarSize / 2 - 6, child: const CrownMark(size: 16)),
       if (g.dealer == s) Positioned(left: c.dx - _avatarSize / 2 - 6, top: c.dy - _avatarSize / 2 - 4, child: const DealerTag()),
       if (note != null) Positioned(left: c.dx - 55, width: 110, top: c.dy + 52, child: Center(child: _smallPill(note))),
+      if (shown.isNotEmpty)
+        Positioned(
+          left: stripL,
+          top: c.dy + 72,
+          width: stripW,
+          height: showW * PlayingCardView.aspect,
+          child: PopIn(
+            from: 0.6,
+            duration: Motion.slow,
+            child: Stack(
+              children: [for (var i = 0; i < shown.length; i++) Positioned(left: i * showStep, child: PlayingCardView(code: shown[i], width: showW))],
+            ),
+          ),
+        ),
     ];
   }
 
