@@ -17,13 +17,28 @@ import {
   SYRIAN_MIN_TOTAL_BIDS,
   SYRIAN_TARGET,
   type TarneebNote,
+  four00MinBid,
+  four00MinTotal,
+  scoreFour00Seat,
   scoreSyrianSeat,
   scoreTarneebHand,
   syrianWinner,
   tarneebWinner,
 } from './scoring.ts';
 
-export type Variant = 'tarneeb' | 'syrian41';
+export type Variant = 'tarneeb' | 'syrian41' | 'tarneeb400';
+
+/**
+ * Variants where each player bids for himself (2..13, no pass) and scores alone, and a team wins when
+ * one of its players reaches 41 with a partner above 0: Syrian 41 and the Lebanese 400.
+ * 400 differs in its fixed trump (hearts), score-dependent minimum bid and bid total, and its value table.
+ */
+export function isSeatBidVariant(v: Variant): boolean {
+  return v === 'syrian41' || v === 'tarneeb400';
+}
+
+/** 400 always plays hearts («الكبة») as trump. */
+export const FOUR00_TRUMP: Suit = 'H';
 export const TARGETS = [31, 41, 61] as const;
 export type Target = (typeof TARGETS)[number];
 
@@ -41,7 +56,7 @@ export type Bid = number | 'pass';
 
 export interface HandResult {
   kind: 'scored' | 'redeal';
-  /** redeal reasons: 'allPass' (tarneeb), 'lowBids' (syrian) */
+  /** redeal reasons: 'allPass' (tarneeb), 'lowBids' (syrian / 400); scored per seat: 'syrian' (also 400) */
   note: TarneebNote | 'allPass' | 'lowBids' | 'syrian';
   /** tarneeb: bidding seat and bid; syrian: undefined */
   bidder?: Seat;
@@ -97,7 +112,7 @@ export interface NewGameOptions {
 }
 
 export function newGame(opts: NewGameOptions, randInt: RandInt): GameState {
-  const target = opts.variant === 'syrian41' ? SYRIAN_TARGET : opts.target ?? 41;
+  const target = isSeatBidVariant(opts.variant) ? SYRIAN_TARGET : opts.target ?? 41;
   if (opts.variant === 'tarneeb' && !(TARGETS as readonly number[]).includes(target)) throw new Error('bad target');
   const dealer = opts.dealer ?? (randInt(4) as Seat);
   const base: GameState = {
@@ -154,6 +169,7 @@ export function startHand(
     s.revealed = d.lastCardOfDealer;
     s.trump = sisterSuit(suitOf(d.lastCardOfDealer));
   }
+  if (s.variant === 'tarneeb400') s.trump = FOUR00_TRUMP;
   return s;
 }
 
@@ -166,10 +182,16 @@ function nextActiveBidder(s: GameState, from: Seat): Seat {
   return from;
 }
 
-/** Lowest bid the seat to act may make (tarneeb), or null if bidding is closed. */
+/** Lowest bid the seat to act may make. */
 export function minBid(s: GameState): number {
   if (s.variant === 'syrian41') return 2;
+  if (s.variant === 'tarneeb400') return four00MinBid(s.seatScores[s.turn]);
   return s.highBid ? s.highBid.value + 1 : 7;
+}
+
+/** Seat-bid variants: the four bids must add up to at least this, or the hand is redealt. */
+export function minTotalBids(s: GameState): number {
+  return s.variant === 'tarneeb400' ? four00MinTotal(s.seatScores) : SYRIAN_MIN_TOTAL_BIDS;
 }
 
 export function act(prev: GameState, seat: Seat, a: Action): ActResult {
@@ -229,13 +251,13 @@ function chooseTrump(s: GameState, seat: Seat, suit: Suit): ActResult {
 
 function bidSyrian(s: GameState, seat: Seat, value: Bid): ActResult {
   if (s.phase !== 'bidding') return { ok: false, error: 'wrongPhase' };
-  if (value === 'pass' || !Number.isInteger(value) || value < 2 || value > 13) return { ok: false, error: 'badBid' };
+  if (value === 'pass' || !Number.isInteger(value) || value < minBid(s) || value > 13) return { ok: false, error: 'badBid' };
   if (s.seatBids[seat] !== null) return { ok: false, error: 'alreadyBid' };
   s.seatBids[seat] = value;
   s.bidLog.push({ seat, bid: value });
   if (s.seatBids.every((b) => b !== null)) {
     const total = (s.seatBids as number[]).reduce((a, b) => a + b, 0);
-    if (total < SYRIAN_MIN_TOTAL_BIDS) {
+    if (total < minTotalBids(s)) {
       s.phase = 'handOver';
       s.lastResult = { kind: 'redeal', note: 'lowBids', teamDelta: [0, 0], seatDelta: [0, 0, 0, 0] };
       return { ok: true, state: s };
@@ -294,7 +316,9 @@ function scoreHand(s: GameState): GameState {
     s.lastResult = { kind: 'scored', note, bidder, bid: s.highBid!.value, bidderTricks, teamDelta: delta, seatDelta: [0, 0, 0, 0] };
     s.winner = tarneebWinner(s.teamScores, s.target);
   } else {
-    const seatDelta = [0, 1, 2, 3].map((x) => scoreSyrianSeat(s.seatBids[x]!, s.tricks[x])) as [number, number, number, number];
+    const seatDelta = [0, 1, 2, 3].map((x) =>
+      s.variant === 'tarneeb400' ? scoreFour00Seat(s.seatBids[x]!, s.tricks[x], s.seatScores[x]) : scoreSyrianSeat(s.seatBids[x]!, s.tricks[x]),
+    ) as [number, number, number, number];
     s.seatScores = s.seatScores.map((v, i) => v + seatDelta[i]) as [number, number, number, number];
     s.teamScores = [s.seatScores[0] + s.seatScores[2], s.seatScores[1] + s.seatScores[3]];
     s.lastResult = { kind: 'scored', note: 'syrian', teamDelta: [seatDelta[0] + seatDelta[2], seatDelta[1] + seatDelta[3]], seatDelta };

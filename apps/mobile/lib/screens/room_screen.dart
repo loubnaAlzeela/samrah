@@ -21,6 +21,7 @@ import '../widgets/motion.dart';
 
 String variantNameAr(String v) => switch (v) {
   'syrian41' => 'طرنيب سوري 41',
+  'tarneeb400' => '400',
   'trix' => 'تركس',
   'trixPartners' => 'تركس شراكة',
   'b187' => 'لعبة 187',
@@ -41,7 +42,7 @@ final GameServerClient gameServer = GameServerClient(kGameServer);
 class RoomScreen extends StatefulWidget {
   const RoomScreen({super.key, this.initialName, this.autoOpen = false, this.variant = 'tarneeb', this.settings});
 
-  /// 'tarneeb' | 'syrian41'.
+  /// wire variant, e.g. 'tarneeb' | 'syrian41' | 'tarneeb400'.
   final String variant;
 
   /// Partial room settings from «لعبة جديدة»; null = server defaults.

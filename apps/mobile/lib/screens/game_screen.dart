@@ -105,7 +105,8 @@ class _GameScreenState extends State<GameScreen> with TurnClock {
     int slotOf(int seat) => (seat - me + 4) % 4;
     String name(int s) => v.seats[s]?.name ?? '؟';
     final us = me % 2;
-    final syrian = g.variant == 'syrian41';
+    // Syrian 41 and 400: each seat bids for itself and scores alone
+    final syrian = g.variant == 'syrian41' || g.variant == 'tarneeb400';
     final myTurn = g.turn == me;
     final acting = ['bidding', 'trump', 'playing'].contains(g.phase) && v.status == 'playing';
     final msLeft = this.msLeft;
@@ -138,6 +139,17 @@ class _GameScreenState extends State<GameScreen> with TurnClock {
         children: [
           Positioned(left: 8, top: 12, child: ScoreDiamond(top: cell(2), left: cell(3), right: cell(1), bottom: cell(0), center: '${g.target}', usVertical: !syrian)),
           Positioned(right: 10, top: 14, child: LastTrickDiamond(cardAt: lastAt)),
+          // 400: the trump is always hearts — shown where Syrian shows its turned-up card
+          if (g.variant == 'tarneeb400' && g.trump != null)
+            Positioned(
+              right: 90,
+              top: 20,
+              child: Column(children: [
+                const Text('الطرنيب', style: TextStyle(color: SamrahColors.textMuted, fontSize: 10)),
+                const SizedBox(height: 4),
+                SuitIcon(suit: g.trump!, size: 26, color: const Color(0xFFE5484D)),
+              ]),
+            ),
           if (syrian && g.revealed != null)
             Positioned(
               right: 90,

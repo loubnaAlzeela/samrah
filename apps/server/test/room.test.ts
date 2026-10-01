@@ -323,6 +323,25 @@ describe('baloot', () => {
   });
 });
 
+describe('400', () => {
+  it('400 with computers: hearts trump, target 41, each seat bids and hands are scored per seat', { timeout: 40_000 }, async () => {
+    const host = P('٤٠٠');
+    await host.create('tarneeb400', { target: 61 });
+    expect(host.view!.settings.target).toBe(41);
+    host.send('start');
+    await waitFor(() => host.view!.status === 'playing', 'playing');
+    const g0 = host.view!.game as any;
+    expect(g0.variant).toBe('tarneeb400');
+    expect(g0.trump).toBe('H');
+    expect(g0.revealed).toBeNull();
+    expect(g0.myHand).toHaveLength(13);
+    await waitFor(() => host.views.some((v) => (v.game as any)?.lastResult?.note === 'syrian'), 'a hand scored per seat', 35_000);
+    const r = host.views.map((v) => (v.game as any)?.lastResult).find((x) => x?.note === 'syrian');
+    expect(r.seatDelta).toHaveLength(4);
+    for (const v of host.views) expect(JSON.stringify(v)).not.toMatch(/"hands"/);
+  });
+});
+
 describe('hand', () => {
   it('the player count comes from the room settings; computers play rounds to the end', { timeout: 60_000 }, async () => {
     const host = P('هاند');

@@ -13,14 +13,15 @@ class RulesScreen extends StatelessWidget {
   /// Which tab opens first: the room's wire variant.
   final String variant;
 
-  static const _tabs = ['طرنيب', 'طرنيب سوري 41', 'تركس', '187', 'بلوت', 'هاند'];
+  static const _tabs = ['طرنيب', 'طرنيب سوري 41', '400', 'تركس', '187', 'بلوت', 'هاند'];
 
   int get _initialTab => switch (variant) {
     'syrian41' => 1,
-    'trix' || 'trixPartners' => 2,
-    'b187' => 3,
-    'baloot' => 4,
-    'hand' => 5,
+    'tarneeb400' => 2,
+    'trix' || 'trixPartners' => 3,
+    'b187' => 4,
+    'baloot' => 5,
+    'hand' => 6,
     _ => 0,
   };
 
@@ -42,7 +43,7 @@ class RulesScreen extends StatelessWidget {
             tabs: [for (final t in _tabs) Tab(text: t)],
           ),
         ),
-        body: const TabBarView(children: [_Tarneeb(), _Syrian(), _Trix(), _B187(), _Baloot(), _Hand()]),
+        body: const TabBarView(children: [_Tarneeb(), _Syrian(), _Four00(), _Trix(), _B187(), _Baloot(), _Hand()]),
       ),
     );
   }
@@ -80,6 +81,30 @@ class _Tarneeb extends StatelessWidget {
           'لكل حركة وقت بحسب سرعة الطاولة، فإذا انتهى لعب الحاسوب حركة عنك.',
           'بعد ثلاث مرات متتالية يُكمل الحاسوب عنك، وأول لمسة للشاشة تعيدك إلى اللعب.',
           'إذا انقطع اتصالك يبقى مقعدك محجوزًا 90 ثانية.',
+        ]),
+      ],
+    );
+  }
+}
+
+class _Four00 extends StatelessWidget {
+  const _Four00();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _Page(
+      sections: [
+        _Section('الفكرة', ['لعبة لبنانية لأربعة لاعبين: كل متقابلَين فريق، لكن كل لاعب يطلب لنفسه ونقاطه له.', 'الهدف 41، والفوز للفريق إذا بلغ أحد لاعبيه 41 أو أكثر وكان رصيد شريكه فوق الصفر.']),
+        _Section('الطرنيب', ['الطرنيب دائماً الكبة (القلب ♥)، ولا تُقلب أي ورقة.', 'أي ورقة كبة أقوى من كل الأشكال الأخرى، والأعلى منها يربح.']),
+        _Section('الطلب', [
+          'يطلب كل لاعب مرة واحدة لنفسه، من 2 إلى 13، ولا يوجد تمرير. يبدأ الطلب واللعب من على يمين الموزّع.',
+          'أقل طلب حسب رصيدك: 3 من 30، و4 من 40، و5 من 50.',
+          'أقل مجموع للطلبات 11، ويصير 12 إذا بلغ أي لاعب 30، و13 من 40، و14 من 50. إذا قلّ المجموع يُعاد التوزيع.',
+        ]),
+        _Section('الحساب', [
+          'إذا حققت طلبك أو زدت يُضاف لك قيمة الطلب، وإن لم تحققه تُطرح منك القيمة نفسها.',
+          'القيم: 2 و3 و4 كما هي، 5 = 10، 6 = 12، 7 = 14، 8 = 16، 9 = 27، ومن 10 إلى 13 = 40.',
+          'إذا كان رصيدك 30 أو أكثر يُحسب لك الطلب 5 بـ5 والطلب 6 بـ6، والباقي كما هو.',
         ]),
       ],
     );

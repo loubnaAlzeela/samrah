@@ -1,5 +1,5 @@
 // Bidding window over the table: «اختر الطلبة», a grid of every bid (7..13,
-// or 2..13 in Syrian 41) with the ones below the server's `minBid` disabled,
+// or 2..13 in Syrian 41 and 400) with the ones below the server's `minBid` disabled,
 // and «تمرير» underneath (Tarneeb only). Neutral buttons — brass stays for
 // the one primary action per screen.
 import 'package:flutter/material.dart';

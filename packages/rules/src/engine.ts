@@ -1,5 +1,5 @@
 /**
- * One entry point over every game family, so the server stays game-agnostic: Tarneeb / Syrian 41 (game.ts),
+ * One entry point over every game family, so the server stays game-agnostic: Tarneeb / Syrian 41 / 400 (game.ts),
  * Trix (trix.ts), 187 (b187.ts), Baloot (baloot.ts) and Hand (hand.ts) each keep their own state and rules; these functions dispatch on the variant.
  */
 import type { RandInt, Seat } from './cards.ts';
@@ -63,7 +63,7 @@ import {
 } from './hand.ts';
 
 export type AnyVariant = Variant | TrixVariant | B187Variant | BalootVariant | HandVariant;
-export const ALL_VARIANTS: readonly AnyVariant[] = ['tarneeb', 'syrian41', 'trix', 'trixPartners', 'b187', 'baloot', 'hand'];
+export const ALL_VARIANTS: readonly AnyVariant[] = ['tarneeb', 'syrian41', 'tarneeb400', 'trix', 'trixPartners', 'b187', 'baloot', 'hand'];
 export function isVariant(v: unknown): v is AnyVariant {
   return (ALL_VARIANTS as readonly unknown[]).includes(v);
 }
@@ -80,7 +80,7 @@ export function seatCount(v: AnyVariant, players?: number): number {
 }
 /** Variants with two fixed teams of opposite seats (the pre-game partner picker applies). */
 export function hasTeams(v: AnyVariant): boolean {
-  return v === 'tarneeb' || v === 'syrian41' || v === 'trixPartners' || v === 'baloot';
+  return v === 'tarneeb' || v === 'syrian41' || v === 'tarneeb400' || v === 'trixPartners' || v === 'baloot';
 }
 
 export type AnyGame = GameState | TrixState | B187State | BalootState | HandState;

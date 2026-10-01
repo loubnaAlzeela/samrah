@@ -78,7 +78,7 @@ class HandResult {
 }
 
 class PlayerView {
-  final String variant; // 'tarneeb' | 'syrian41'
+  final String variant; // 'tarneeb' | 'syrian41' | 'tarneeb400'
   final int target;
   final String phase; // bidding | trump | playing | trickDone | handOver | gameOver
   final int handNo;

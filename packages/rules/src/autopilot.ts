@@ -1,6 +1,5 @@
 import { type Card, type Seat, type Suit, SUITS, partnerOf, rankOf, suitOf } from './cards.ts';
-import type { Action, GameState } from './game.ts';
-import { SYRIAN_MIN_TOTAL_BIDS } from './scoring.ts';
+import { type Action, type GameState, minBid, minTotalBids } from './game.ts';
 import { legalCards, trickWinner } from './trick.ts';
 
 /**
@@ -9,8 +8,9 @@ import { legalCards, trickWinner } from './trick.ts';
  *
  * - Tarneeb bidding: pass.
  * - Tarneeb trump (autopilot won the auction): longest suit in hand; tie -> stronger suit (higher rank sum).
- * - Syrian bidding: aces + Q/K of trump, clamped to 2..5. If it is the LAST bid and the total would stay
- *   under 11, it tops up to reach exactly 11 (avoids endless redeals when several seats are on autopilot).
+ * - Syrian / 400 bidding: aces + Q/K of trump, clamped to the seat's minimum..5. If it is the LAST bid and
+ *   the total would stay under the minimum total (11; 400: up to 14), it tops up to reach it exactly
+ *   (avoids endless redeals when several seats are on autopilot).
  * - Play: if partner is currently winning the trick -> cheapest legal card. Otherwise, if some legal card
  *   wins the trick right now -> the cheapest such card. Otherwise -> cheapest legal card.
  *   "Cheapest" = non-trump before trump, then lower rank.
@@ -47,11 +47,14 @@ export function syrianAutoBid(s: GameState, seat: Seat): number {
   const hand = s.hands[seat];
   const aces = hand.filter((c) => rankOf(c) === 14).length;
   const highTrumps = hand.filter((c) => suitOf(c) === s.trump && (rankOf(c) === 13 || rankOf(c) === 12)).length;
-  let bid = Math.min(SYRIAN_AUTO_MAX_BID, Math.max(2, aces + highTrumps));
+  // never under this seat's minimum (400 raises it with the seat's score)
+  const floor = minBid({ ...s, turn: seat });
+  let bid = Math.max(floor, Math.min(SYRIAN_AUTO_MAX_BID, Math.max(2, aces + highTrumps)));
   const others = s.seatBids.filter((b, i) => i !== seat && b !== null) as number[];
   if (others.length === 3) {
     const sum = others.reduce((a, b) => a + b, 0);
-    if (sum + bid < SYRIAN_MIN_TOTAL_BIDS) bid = Math.min(13, SYRIAN_MIN_TOTAL_BIDS - sum);
+    const need = minTotalBids(s);
+    if (sum + bid < need) bid = Math.min(13, need - sum);
   }
   return bid;
 }

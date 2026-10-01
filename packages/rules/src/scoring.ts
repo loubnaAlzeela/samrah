@@ -61,6 +61,37 @@ export const SYRIAN_MIN_TOTAL_BIDS = 11;
 export const SYRIAN_TARGET = 41;
 
 /**
+ * 400: what a bid is worth, won or lost. A player whose own score is already 30 or more
+ * scores bids of 5 and 6 at face value; everything else is the same in both tables.
+ */
+export const FOUR00_VALUES: Readonly<Record<number, number>> = { 2: 2, 3: 3, 4: 4, 5: 10, 6: 12, 7: 14, 8: 16, 9: 27, 10: 40, 11: 40, 12: 40, 13: 40 };
+export const FOUR00_VALUES_FROM_30: Readonly<Record<number, number>> = { ...FOUR00_VALUES, 5: 5, 6: 6 };
+
+/** 400: made (tricks >= bid) -> +value of the bid, failed -> −value; the table depends on the player's own score. */
+export function scoreFour00Seat(bid: number, tricks: number, ownScore: number): number {
+  if (!Number.isInteger(bid) || bid < 2 || bid > 13) throw new Error('bad bid');
+  const value = (ownScore >= 30 ? FOUR00_VALUES_FROM_30 : FOUR00_VALUES)[bid];
+  return tricks >= bid ? value : -value;
+}
+
+/** 400: the lowest bid a player may make, by their own score: 30–39 -> 3, 40–49 -> 4, 50+ -> 5, else 2. */
+export function four00MinBid(ownScore: number): number {
+  if (ownScore >= 50) return 5;
+  if (ownScore >= 40) return 4;
+  if (ownScore >= 30) return 3;
+  return 2;
+}
+
+/** 400: the lowest total of the four bids, by the highest score at the table: 30+ -> 12, 40+ -> 13, 50+ -> 14, else 11. */
+export function four00MinTotal(seatScores: readonly number[]): number {
+  const top = Math.max(...seatScores);
+  if (top >= 50) return 14;
+  if (top >= 40) return 13;
+  if (top >= 30) return 12;
+  return SYRIAN_MIN_TOTAL_BIDS;
+}
+
+/**
  * Syrian 41 winner check.
  * A team qualifies when one of its players has >= target AND that player's partner has > 0.
  * Both teams qualify -> the team whose qualifying player has the higher score wins; exact tie -> null (play another hand).

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scoreSyrianSeat, scoreTarneebHand, syrianWinner, tarneebWinner } from '../src/index.ts';
+import { four00MinBid, four00MinTotal, scoreFour00Seat, scoreSyrianSeat, scoreTarneebHand, syrianWinner, tarneebWinner } from '../src/index.ts';
 
 /** The worked examples in docs/rules/*.md, checked against the engine so the docs cannot drift. */
 describe('docs/rules/tarneeb.md examples', () => {
@@ -31,5 +31,24 @@ describe('docs/rules/tarneeb-syrian-41.md examples', () => {
   it('5: 43 vs 44 both qualified -> team 1; 43 vs 43 -> extra hand', () => {
     expect(syrianWinner([43, 44, 5, 5])).toBe(1);
     expect(syrianWinner([43, 43, 5, 5])).toBeNull();
+  });
+});
+
+describe('docs/rules/400.md examples', () => {
+  it('1: from 0, bids 5/2/2/2 with tricks 13/0/0/0 -> +10/−2/−2/−2', () => {
+    const bids = [5, 2, 2, 2];
+    const tricks = [13, 0, 0, 0];
+    expect(bids.map((b, i) => scoreFour00Seat(b, tricks[i], 0))).toEqual([10, -2, -2, -2]);
+  });
+  it('2: on 35, bid 6 made -> +6 = 41; partner on 3 -> the team wins', () => {
+    const delta = scoreFour00Seat(6, 6, 35);
+    expect(delta).toBe(6);
+    expect(syrianWinner([35 + delta, 0, 3, 0])).toBe(0);
+  });
+  it('3: scores 42/12/0/0 -> minimum bids 4 and 2, table minimum 13; bids 4+3+3+2 = 12 are redealt', () => {
+    expect(four00MinBid(42)).toBe(4);
+    expect(four00MinBid(12)).toBe(2);
+    expect(four00MinTotal([42, 12, 0, 0])).toBe(13);
+    expect(4 + 3 + 3 + 2 < four00MinTotal([42, 12, 0, 0])).toBe(true);
   });
 });
