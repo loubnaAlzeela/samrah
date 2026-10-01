@@ -28,13 +28,14 @@ class SamrahColors {
   static const suitRed = Color(0xFFB3261E); // قلب / ديناري
   static const suitBlack = Color(0xFF1F1A17); // بستوني / سباتي
 
-  // Dark shell («سهرة») — the default.
-  static const bg = Color(0xFF17110F);
-  static const surface = Color(0xFF221A17);
-  static const surface2 = Color(0xFF2C231F);
-  static const surface3 = Color(0xFF362B26);
+  // Dark shell («سهرة») — the default. Lighter than it first was, so screens read as a
+  // warm evening rather than near-black; screens sit on [SamrahBackdrop] (lit in the middle).
+  static const bg = Color(0xFF2B221E);
+  static const surface = Color(0xFF362C27);
+  static const surface2 = Color(0xFF40352F);
+  static const surface3 = Color(0xFF4A3E37);
   static const scorebox = Color(0xFF0F0B0A);
-  static const line = Color(0xFF3D322C);
+  static const line = Color(0xFF56473F);
   static const fieldBorder = Color(0xFF7A6858);
   static const text = Color(0xFFF2E9DC);
   static const textMuted = Color(0xFFB9AC9A);
@@ -49,13 +50,38 @@ class SamrahColors {
   static const turnRing = Color(0xFFE3A93F);
 
   static const online = Color(0xFF2FB36B);
-  static const panel = Color(0xF017110F); // 94% opaque espresso, for panels over the table
+  static const panel = Color(0xF0221A17); // 94% opaque espresso, for panels over the table
 
   // Seats around the table (design/layout-v2.md): name capsule + avatar ring.
-  static const pillBg = Color(0xFF17110F);
+  static const pillBg = Color(0xFF221A17);
   static const pillBorder = Color(0xFF8F8272);
-  static const avatarBg = Color(0xFF3A2F29);
+  static const avatarBg = Color(0xFF4D3F37);
   static const avatarRing = Color(0xFF8F8272);
+}
+
+/// The screens' background: the shell colour, lit softly from the middle (a warm glow
+/// just above centre fading to slightly deeper edges).
+class SamrahBackdrop extends StatelessWidget {
+  const SamrahBackdrop({super.key, required this.child});
+  final Widget child;
+
+  static const _light = Color(0xFF4A3B32); // the glow at the centre
+  static const _edge = Color(0xFF211A16); // the corners
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(0, -0.1),
+          radius: 1.05,
+          colors: [_light, SamrahColors.bg, _edge],
+          stops: [0.0, 0.55, 1.0],
+        ),
+      ),
+      child: child,
+    );
+  }
 }
 
 class SamrahTheme {
@@ -69,7 +95,8 @@ class SamrahTheme {
       brightness: Brightness.dark,
       // Cairo everywhere: a plain, highly legible Arabic face (owner asked to drop the decorative Kufi)
       fontFamily: GoogleFonts.cairo().fontFamily,
-      scaffoldBackgroundColor: SamrahColors.bg,
+      // screens are transparent: each page carries SamrahBackdrop (added by the page transition)
+      scaffoldBackgroundColor: Colors.transparent,
       // every page change fades and rises (lib/widgets/motion.dart)
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
         TargetPlatform.android: FadeSlidePageTransitionsBuilder(),
@@ -90,7 +117,8 @@ class SamrahTheme {
         titleLarge: displayText.titleLarge,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: SamrahColors.bg,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         foregroundColor: SamrahColors.text,
         elevation: 0,
         centerTitle: true,

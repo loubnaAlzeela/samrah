@@ -1,12 +1,12 @@
-// Home screen — matches design/layout-v3.md §1/§2/§8: header (stars ·
-// profile · coins), game picker, the three mode cards, and the
-// bottom nav. Icons use Material's outline set as a pragmatic stand-in for
+// Home screen: header (stars · profile with settings · coins, messages and
+// notifications), the game's icon and name (swipe or arrows to change game),
+// the radial wheel of actions above the bottom nav, and the bottom nav. Icons use Material's outline set as a pragmatic stand-in for
 // the spec's custom line icons (no Jawaker art either way).
 //
 // Wallets ("وحدات" / "نجوم"), levels, store, clubs and challenges are
 // DISPLAY ONLY — no backend yet (see layout-v3.md §10). Real gameplay
-// (bidding, trump, play) is fully wired; only "إنشاء لعبة" and "لعبة ودية"
-// lead somewhere real right now.
+// (bidding, trump, play) is fully wired; «لعبة ودية», «إنشاء لعبة» and
+// «القوانين» lead somewhere real right now.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -14,7 +14,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/samrah_theme.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/mode_wheel.dart';
+import '../widgets/radial_mode_wheel.dart';
 import 'games_screen.dart';
 import 'new_game_sheet.dart';
 import 'placeholder_screen.dart';
@@ -81,26 +81,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final trimmedName = widget.playerName.trim();
     final letter = trimmedName.isNotEmpty ? trimmedName.substring(0, 1) : '؟';
-    return Scaffold(
+    final mq = MediaQuery.of(context);
+    return MediaQuery(
+      data: mq.copyWith(textScaler: mq.textScaler.clamp(maxScaleFactor: 1.15)),
+      child: Scaffold(
       body: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(top: 16, bottom: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              EnterFrom(child: _header(letter)),
-              const SizedBox(height: 24),
-              EnterFrom(delay: Motion.stagger(1, stepMs: 80), child: _gamePicker()),
-              const SizedBox(height: 20),
-              EnterFrom(delay: Motion.stagger(2, stepMs: 80), child: _modeCards()),
-              const SizedBox(height: 20),
-              EnterFrom(delay: Motion.stagger(3, stepMs: 80), child: _rulesRankInvite()),
-            ],
-          ),
-        ),
+        child: _body(letter),
       ),
       bottomNavigationBar: BottomNav(index: _navIndex, onTap: _onNav),
+      ),
     );
   }
 
@@ -137,19 +127,43 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(child: _profileCapsule(letter)),
           const SizedBox(width: 10),
           // left edge: messages and notifications
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _headerIcon(Icons.chat_bubble_outline, 'الرسائل', () => _push(const PlaceholderScreen(title: 'الرسائل'))),
-              _headerIcon(Icons.notifications_none, 'التنبيهات', () => _push(const PlaceholderScreen(title: 'التنبيهات'))),
-            ],
-          ),
+          _iconColumn([
+            (Icons.chat_bubble_outline, 'الرسائل', () => _push(const PlaceholderScreen(title: 'الرسائل'))),
+            (Icons.notifications_none, 'التنبيهات', () => _push(const PlaceholderScreen(title: 'التنبيهات'))),
+          ]),
         ],
       ),
     );
   }
 
   void _push(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
+  /// Icons 36 apart, each with a 44x44 touch area (the areas reach 4px past their slot).
+  Widget _iconColumn(List<(IconData, String, VoidCallback)> items) {
+    return SizedBox(
+      width: 44,
+      height: 36.0 * items.length,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (final (i, (icon, tooltip, onTap)) in items.indexed)
+            Positioned(
+              top: 36.0 * i - 4,
+              left: 0,
+              width: 44,
+              height: 44,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+                tooltip: tooltip,
+                onPressed: onTap,
+                icon: Icon(icon, color: SamrahColors.text, size: 24),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _headerIcon(IconData icon, String tooltip, VoidCallback onTap) => SizedBox(
         width: 38,
@@ -245,68 +259,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _gamePicker() {
-    return SizedBox(
-      height: 140,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          // small fanned card silhouette, well clear of the text below it
-          SizedBox(
-            height: 56,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                for (final (i, r) in [(-1, -18.0), (0, 0.0), (1, 18.0)])
-                  Transform.rotate(
-                    angle: r * 3.14159 / 180,
-                    child: Transform.translate(
-                      offset: Offset(i * 14.0, i == 0 ? -4 : 2),
-                      child: Container(
-                        width: 32,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: SamrahColors.cardFace,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: SamrahColors.cardEdge),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+  Widget _cardFan(double k) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        for (final (i, r) in [(-1, -18.0), (0, 0.0), (1, 18.0)])
+          Transform.rotate(
+            angle: r * 3.14159 / 180,
+            child: Transform.translate(
+              offset: Offset(i * 14.0 * k, (i == 0 ? -4 : 2) * k),
+              child: Container(
+                width: 32 * k,
+                height: 46 * k,
+                decoration: BoxDecoration(
+                  color: SamrahColors.cardFace,
+                  borderRadius: BorderRadius.circular(6 * k),
+                  border: Border.all(color: SamrahColors.cardEdge),
+                ),
+              ),
             ),
           ),
-          Positioned(
-            top: 70,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _games[_gameIndex].$2,
-                  style: GoogleFonts.cairo(fontSize: 26, fontWeight: FontWeight.w700, color: SamrahColors.text),
-                ),
-                const SizedBox(height: 4),
-                Text(_games[_gameIndex].$3, style: const TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0; i < _games.length; i++)
-                      Container(
-                        width: i == _gameIndex ? 16 : 6,
-                        height: 6,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(color: i == _gameIndex ? SamrahColors.text : SamrahColors.line, borderRadius: BorderRadius.circular(3)),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Positioned(right: 8, top: 46, child: _arrow(Icons.chevron_right, () => _stepGame(1))),
-          Positioned(left: 8, top: 46, child: _arrow(Icons.chevron_left, () => _stepGame(_games.length - 1))),
-        ],
-      ),
+      ],
     );
   }
 
@@ -321,13 +294,90 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _modeCards() {
-    return ModeWheel(
-      initial: 1, // «لعبة ودية» in front
-      items: [
-        ModeItem(icon: Icons.add_rounded, title: 'إنشاء لعبة', action: 'إنشاء', onTap: _openNewGameSheet),
-        ModeItem(icon: Icons.play_arrow_rounded, title: 'لعبة ودية', action: 'العب الآن', onTap: () => _openRoomFlow(auto: true)),
-        ModeItem(icon: Icons.public, title: 'الألعاب العامة', action: 'عرض الألعاب', onTap: () => _soon('الألعاب العامة')),
+  /// the wheel sits 50 above the bottom nav (its button and every wedge included)
+  static const _wheelClearance = 50.0;
+
+  /// Header, then the game block and the wheel sharing the rest: the wheel takes what it
+  /// needs, the game block hugs its content, and what is left becomes the spacing.
+  Widget _body(String letter) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          EnterFrom(child: _header(letter)),
+          Expanded(
+            child: LayoutBuilder(builder: (context, box) {
+              // the wheel may use everything but the game block, a little spacing and the nav clearance
+              final ts = MediaQuery.textScalerOf(context);
+              final gameBlock = 40 + 6 + ts.scale(26) * 1.2;
+              final wheelMax = box.maxHeight - gameBlock - 2 * 12 - _wheelClearance;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // two thirds of the spare room above the game name, one third between it and the wheel
+                  const SizedBox(height: 12),
+                  const Spacer(flex: 2),
+                  EnterFrom(delay: Motion.stagger(1, stepMs: 80), child: _gameIdentity()),
+                  const SizedBox(height: 12),
+                  const Spacer(),
+                  EnterFrom(
+                    delay: Motion.stagger(2, stepMs: 80),
+                    child: ConstrainedBox(constraints: BoxConstraints(maxHeight: wheelMax), child: _wheel()),
+                  ),
+                  const SizedBox(height: _wheelClearance),
+                ],
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The game's icon and name as one tight group; swipe or use the arrows.
+  Widget _gameIdentity() {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragEnd: (d) {
+        final v = d.primaryVelocity ?? 0;
+        if (v.abs() < 200) return;
+        // RTL: a swipe to the left brings the next game, as the right arrow does
+        _stepGame(v < 0 ? 1 : _games.length - 1);
+      },
+      child: Row(
+        children: [
+          _arrow(Icons.chevron_right, () => _stepGame(1)),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 40, child: _cardFan(40 / 56)),
+                const SizedBox(height: 6),
+                Text(_games[_gameIndex].$2, style: GoogleFonts.cairo(fontSize: 26, fontWeight: FontWeight.w700, color: SamrahColors.text, height: 1.2)),
+              ],
+            ),
+          ),
+          _arrow(Icons.chevron_left, () => _stepGame(_games.length - 1)),
+        ],
+      ),
+    );
+  }
+
+  /// Every home action on one wheel: the three ways to play, then rules and leaderboard.
+  Widget _wheel() {
+    return RadialModeWheel(
+      options: [
+        RadialOption(label: 'لعبة ودية', icon: Icons.play_arrow_rounded, action: 'العب', onSelected: () => _openRoomFlow(auto: true)),
+        RadialOption(label: 'إنشاء لعبة', icon: Icons.add_rounded, action: 'أنشئ', onSelected: _openNewGameSheet),
+        RadialOption(label: 'الألعاب العامة', icon: Icons.public, action: 'تصفّح', onSelected: () => _soon('الألعاب العامة')),
+        RadialOption(
+          label: 'القوانين',
+          icon: Icons.menu_book_outlined,
+          action: 'اقرأ',
+          onSelected: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RulesScreen(variant: _variant))),
+        ),
+        RadialOption(label: 'الترتيب', icon: Icons.emoji_events_outlined, action: 'اعرض', onSelected: () => _soon('الترتيب')),
       ],
     );
   }
@@ -341,60 +391,5 @@ class _HomeScreenState extends State<HomeScreen> {
     ).then((settings) {
       if (settings != null) _openRoomFlow(auto: true, settings: settings);
     });
-  }
-
-  Widget _rulesRankInvite() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _roundIconLabel(Icons.emoji_events_outlined, 'الترتيب', () => _soon('الترتيب')),
-          InkWell(
-            onTap: () => _soon('دعوة صديق'),
-            customBorder: const CircleBorder(),
-            child: Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: SamrahColors.surface2,
-                shape: BoxShape.circle,
-                border: Border.all(color: SamrahColors.line),
-              ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.person_add_alt, size: 18, color: SamrahColors.text),
-                  Text('ادعُ', style: TextStyle(fontSize: 9, color: SamrahColors.text)),
-                ],
-              ),
-            ),
-          ),
-          _roundIconLabel(Icons.menu_book_outlined, 'القوانين', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RulesScreen(variant: _variant)))),
-        ],
-      ),
-    );
-  }
-
-  Widget _roundIconLabel(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Column(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: SamrahColors.line),
-            ),
-            child: Icon(icon, size: 18, color: SamrahColors.icon),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 11, color: SamrahColors.textMuted)),
-        ],
-      ),
-    );
   }
 }

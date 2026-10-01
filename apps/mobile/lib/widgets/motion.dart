@@ -9,6 +9,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../theme/samrah_theme.dart';
+
 import '../services/sound.dart';
 
 /// Durations and curves used everywhere.
@@ -232,7 +234,7 @@ class FadeSlidePageTransitionsBuilder extends PageTransitionsBuilder {
       opacity: Tween(begin: 1.0, end: 0.6).animate(outT),
       child: FadeTransition(
         opacity: inT,
-        child: SlideTransition(position: Tween(begin: const Offset(0, 0.04), end: Offset.zero).animate(inT), child: child),
+        child: SlideTransition(position: Tween(begin: const Offset(0, 0.04), end: Offset.zero).animate(inT), child: SamrahBackdrop(child: child)),
       ),
     );
   }
