@@ -25,7 +25,7 @@ const voiceClipMs = <String, int>{
   'c_queens': 607,
   'c_diamonds': 735,
   'c_tricks': 700,
-  'c_trix': 670,
+  'c_trix': 573,
   'c_complex': 747,
   'b_sun': 542,
   'b_hokm2': 972,

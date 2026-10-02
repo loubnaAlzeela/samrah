@@ -10,7 +10,7 @@ import '../theme/samrah_theme.dart';
 import 'suit_icon.dart';
 
 class PlayingCardView extends StatelessWidget {
-  const PlayingCardView({super.key, required this.code, this.width = 44, this.dimmed = false, this.selected = false, this.highlight = false});
+  const PlayingCardView({super.key, required this.code, this.width = 44, this.dimmed = false, this.selected = false, this.highlight = false, this.playable = false});
 
   final String code;
   final double width;
@@ -24,6 +24,9 @@ class PlayingCardView extends StatelessWidget {
 
   /// The card currently winning the finished trick.
   final bool highlight;
+
+  /// Legal to play right now while others are dimmed: a thin brass edge.
+  final bool playable;
 
   static const double aspect = 1.42;
 
@@ -48,8 +51,8 @@ class PlayingCardView extends StatelessWidget {
           color: SamrahColors.cardFace,
           borderRadius: radius,
           border: Border.all(
-            color: selected ? SamrahColors.turnRing : (highlight ? SamrahColors.text : SamrahColors.cardEdge),
-            width: selected ? 3 : (highlight ? 2.5 : 1),
+            color: selected || playable ? SamrahColors.turnRing : (highlight ? SamrahColors.text : SamrahColors.cardEdge),
+            width: selected ? 3 : (highlight ? 2.5 : (playable ? 1.8 : 1)),
           ),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: w * 0.08, offset: Offset(-w * 0.02, w * 0.03))],
         ),
@@ -105,7 +108,7 @@ extension on PlayingCardView {
         decoration: BoxDecoration(
           color: SamrahColors.cardFace,
           borderRadius: radius,
-          border: Border.all(color: selected ? SamrahColors.turnRing : (highlight ? SamrahColors.text : SamrahColors.cardEdge), width: selected ? 3 : (highlight ? 2.5 : 1)),
+          border: Border.all(color: selected || playable ? SamrahColors.turnRing : (highlight ? SamrahColors.text : SamrahColors.cardEdge), width: selected ? 3 : (highlight ? 2.5 : (playable ? 1.8 : 1))),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: w * 0.08, offset: Offset(-w * 0.02, w * 0.03))],
         ),
         child: ClipRRect(

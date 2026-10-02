@@ -82,6 +82,8 @@ export interface B187State {
   hands: Card[][];
   /** the face-down cards in the middle, until the buyer takes them */
   field: Card[];
+  /** the field cards just merged into the buyer's hand this hand (for the client to show which ones are new) */
+  kittyTaken: Card[];
   turn: number;
   bidLog: { seat: number; bid: number | 'pass' }[];
   passed: boolean[];
@@ -130,6 +132,7 @@ export function new187Game(opts: { players?: number; dealer?: number }, randInt:
     phase: 'bidding',
     hands: [],
     field: [],
+    kittyTaken: [],
     turn: 0,
     bidLog: [],
     passed: [],
@@ -181,6 +184,7 @@ export function start187Hand(prev: B187State, randInt: RandInt, dealer: number, 
     phase: 'bidding',
     hands,
     field,
+    kittyTaken: [],
     turn: (dealer + 1) % n,
     bidLog: [],
     passed: Array(n).fill(false),
@@ -282,6 +286,7 @@ function bid(s: B187State, seat: number, value: number | 'pass'): B187ActResult 
 
 function endAuction(s: B187State, buyer: number): B187ActResult {
   s.buyer = buyer;
+  s.kittyTaken = s.field.slice();
   s.hands[buyer] = [...s.hands[buyer], ...s.field];
   s.field = [];
   s.phase = 'give';
@@ -396,6 +401,8 @@ export interface B187View {
   minBid: number | null;
   /** how many cards I must give back (buyer, give phase) */
   giveCount: number;
+  /** the field cards just added to my hand (buyer, give phase only): lets the client show which cards are new */
+  kittyCards: Card[];
   fieldCount: number;
   /** the field face up (once the bid reached 140), else empty */
   field: Card[];
@@ -431,6 +438,7 @@ export function b187ViewFor(s: B187State, seat: number): B187View {
     legal: myTurn && s.phase === 'playing' ? b187Legal(s.hands[seat], s.trick) : [],
     minBid: myTurn && s.phase === 'bidding' ? min187Bid(s) : null,
     giveCount: myTurn && s.phase === 'give' ? s.players - 1 : 0,
+    kittyCards: seat === s.buyer && s.phase === 'give' ? s.kittyTaken.slice() : [],
     fieldCount: s.field.length,
     field: fieldRevealed(s) ? s.field.slice() : [],
     bidLog: s.bidLog.map((b) => ({ ...b })),

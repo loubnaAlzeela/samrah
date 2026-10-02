@@ -48,6 +48,10 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
   /// cards picked to hand back (insertion order = which opponent gets which)
   final Set<String> _picked = {};
 
+  /// the kitty cards just merged into my hand this hand: they fly in from the
+  /// table centre instead of silently appearing (set once, on the 'give' transition)
+  Set<String> _arrivingKitty = {};
+
   @override
   void initState() {
     super.initState();
@@ -61,7 +65,13 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
     if (!identical(old.view, widget.view)) {
       syncClock(widget.view);
       playTableAudio(old.view, widget.view);
-      if (widget.view.b187?.phase != 'give') _picked.clear();
+      final g = widget.view.b187;
+      if (g?.phase != 'give') {
+        _picked.clear();
+        _arrivingKitty = {};
+      } else if (old.view.b187?.phase != 'give' && g!.kittyCards.isNotEmpty) {
+        _arrivingKitty = g.kittyCards.toSet();
+      }
     }
   }
 
@@ -85,7 +95,7 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
     }
     return Container(
       decoration: const BoxDecoration(
-        gradient: RadialGradient(center: Alignment(0, -0.3), radius: 1.1, colors: [Color(0xFF2C2420), SamrahColors.bg]),
+        gradient: RadialGradient(center: Alignment(0, -0.3), radius: 1.1, colors: [Color(0xFF383838), SamrahColors.bg]),
       ),
       alignment: Alignment.topCenter,
       child: FittedBox(
@@ -167,6 +177,7 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
               legal: myTurn && g.phase == 'playing' && !meAuto ? g.legal : null,
               onPlay: (card) => conn.send('play', {'card': card}),
               picked: giving ? _picked : null,
+              arriving: _arrivingKitty,
               onPick: giving
                   ? (c) => setState(() {
                         if (!_picked.remove(c) && _picked.length < g.giveCount) _picked.add(c);
@@ -401,7 +412,7 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
             ],
           ),
           const SizedBox(height: 6),
-          Text(g.field.isEmpty ? 'الميدان · يُكشف عند 140' : 'الميدان مكشوف', style: const TextStyle(color: SamrahColors.onTableMuted, fontSize: 11)),
+          Text(g.field.isEmpty ? 'الميدان · يُكشف عند 140' : 'الميدان مكشوف', style: const TextStyle(color: SamrahColors.onFeltMuted, fontSize: 11)),
         ],
       ),
     );

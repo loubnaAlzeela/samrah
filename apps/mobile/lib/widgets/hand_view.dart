@@ -12,12 +12,29 @@ import 'motion.dart';
 import 'playing_card_view.dart';
 
 class HandView extends StatefulWidget {
-  const HandView({super.key, required this.cards, required this.trump, required this.legal, required this.onPlay, this.width = 378, this.picked, this.onPick, this.power, this.suitOrder});
+  const HandView({
+    super.key,
+    required this.cards,
+    required this.trump,
+    required this.legal,
+    required this.onPlay,
+    this.width = 378,
+    this.picked,
+    this.onPick,
+    this.power,
+    this.suitOrder,
+    this.arriving = const {},
+  });
 
   /// Pick mode (187, handing cards back): when [onPick] is set, a tap toggles
   /// a card instead of playing it, and [picked] cards are shown raised.
   final Set<String>? picked;
   final ValueChanged<String>? onPick;
+
+  /// Cards to always fly in from the table centre (187's kitty merging into
+  /// the buyer's hand), even if this exact code was already in [_seen] from
+  /// an earlier hand this match.
+  final Set<String> arriving;
 
   final List<String> cards;
   final String? trump;
@@ -115,13 +132,17 @@ class _HandViewState extends State<HandView> {
       final dragging = _dragging == c;
       final canDrag = _canDrag(c);
       final ready = dragging && _drag.dy <= -HandView.playDistance;
+      final playable = widget.onPick == null && legal != null && legal.contains(c);
+      final arrivingNow = widget.arriving.contains(c);
+      final flying = dealing || arrivingNow;
+      final staggerIndex = arrivingNow ? widget.arriving.toList().indexOf(c) : fresh.indexOf(c);
       return AnimatedPositioned(
         key: ValueKey(c),
         // follow the finger exactly; spring back when released short
         duration: dragging ? Duration.zero : const Duration(milliseconds: 160),
         curve: Curves.easeOut,
         left: offset + i * step + (dragging ? _drag.dx : 0),
-        top: _raised(c) ? -16 : (dragging ? _drag.dy : 0),
+        top: _raised(c) ? -16 : (dragging ? _drag.dy : (playable ? -8 : 0)),
         child: Opacity(
           opacity: _sent == c ? 0 : 1,
           child: GestureDetector(
@@ -137,8 +158,8 @@ class _HandViewState extends State<HandView> {
                     })
                 : null,
             child: EnterFrom(
-              offset: dealing ? Offset(widget.width / 2 - (offset + i * step + cw / 2), -260) : const Offset(0, -70),
-              delay: dealing ? Motion.stagger(fresh.indexOf(c), stepMs: 45, maxSteps: 20) : Duration.zero,
+              offset: flying ? Offset(widget.width / 2 - (offset + i * step + cw / 2), -260) : const Offset(0, -70),
+              delay: flying ? Motion.stagger(staggerIndex, stepMs: 45, maxSteps: 20) : Duration.zero,
               duration: const Duration(milliseconds: 420),
               child: Transform.scale(
                 scale: dragging ? 1.08 : 1,
@@ -147,6 +168,7 @@ class _HandViewState extends State<HandView> {
                   width: cw,
                   dimmed: widget.onPick == null && legal != null && !legal.contains(c),
                   selected: _raised(c) || ready,
+                  playable: playable,
                 ),
               ),
             ),

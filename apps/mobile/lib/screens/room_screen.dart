@@ -1,6 +1,8 @@
 // Entry screen: name field + "open room" button. Once connected, it hands
 // off to WaitingScreen (before the game starts) or GameScreen (bidding,
 // trump, play, results) — driven entirely by the server's `state` broadcast.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -70,7 +72,18 @@ class _RoomScreenState extends State<RoomScreen> {
   RoomConnection? _connection;
   String _openStatus = 'idle'; // idle | connecting | error
   String? _lastError;
+  Timer? _errorTimer;
   RoomView? _view;
+
+  /// A rejected action (e.g. a card played a beat too late) shows briefly, then clears
+  /// itself — it isn't a connection problem, so it shouldn't sit on screen forever.
+  void _flashError(String e) {
+    _errorTimer?.cancel();
+    setState(() => _lastError = e);
+    _errorTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _lastError = null);
+    });
+  }
 
   @override
   void initState() {
@@ -83,6 +96,7 @@ class _RoomScreenState extends State<RoomScreen> {
   Future<void> _openRoom() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
+    _errorTimer?.cancel();
     setState(() {
       _openStatus = 'connecting';
       _lastError = null;
@@ -91,7 +105,7 @@ class _RoomScreenState extends State<RoomScreen> {
       final conn = await gameServer.openRoom(playerName: name, variant: widget.variant, settings: widget.settings);
       _connection = conn;
       conn.onState.listen((v) => setState(() => _view = v));
-      conn.onError.listen((e) => setState(() => _lastError = errorText(e)));
+      conn.onError.listen((e) => _flashError(errorText(e)));
       conn.onStatus.listen((_) => setState(() {})); // repaint the reconnecting banner
       setState(() => _openStatus = 'connected');
     } catch (e) {
@@ -104,6 +118,7 @@ class _RoomScreenState extends State<RoomScreen> {
 
   @override
   void dispose() {
+    _errorTimer?.cancel();
     // leaving the table: stop the voice and any sound still scheduled for it
     Sound.instance.stopAll();
     _connection?.leave();

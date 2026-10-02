@@ -2,7 +2,10 @@
   "name": "lamma",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "test": "npm -w @lamma/rules run test",
     "typecheck": "npm -w @lamma/rules run typecheck && npm -w @lamma/server run typecheck",
@@ -12,5 +15,9 @@
   "devDependencies": {
     "typescript": "~5.9.3",
     "tsx": "^4.23.15"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "msgpackr-extract@3.0.4": true
   }
 }

@@ -89,6 +89,9 @@ class B187View {
   final List<String> legal;
   final int? minBid;
   final int giveCount;
+
+  /// the field cards just added to my hand (buyer, give phase only): which cards in [myHand] are new
+  final List<String> kittyCards;
   final int fieldCount;
   final List<String> field;
   final List<B187Bid> bidLog;
@@ -120,6 +123,7 @@ class B187View {
     required this.legal,
     required this.minBid,
     required this.giveCount,
+    this.kittyCards = const [],
     required this.fieldCount,
     required this.field,
     required this.bidLog,
@@ -161,6 +165,7 @@ class B187View {
         legal: _strings(json['legal']),
         minBid: asIntOrNull(json['minBid']),
         giveCount: asIntOr(json['giveCount'], 0),
+        kittyCards: _strings(json['kittyCards']),
         fieldCount: asIntOr(json['fieldCount'], 0),
         field: _strings(json['field']),
         bidLog: ((json['bidLog'] as List?) ?? const []).map((e) => B187Bid.fromJson(e as Map)).toList(),
