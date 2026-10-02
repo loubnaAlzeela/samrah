@@ -118,13 +118,13 @@ class WaitingScreen extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('رمز الغرفة', style: TextStyle(color: SamrahColors.onTableMuted, fontSize: 13)),
+        const Text('رمز الغرفة', style: TextStyle(color: SamrahColors.onFeltMuted, fontSize: 13)),
         const SizedBox(height: 2),
         Directionality(
           textDirection: TextDirection.ltr,
           child: Text(
             view.code,
-            style: GoogleFonts.cairo(color: SamrahColors.onTableAccent, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 3, height: 1.2),
+            style: GoogleFonts.cairo(color: SamrahColors.onFeltAccent, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 3, height: 1.2),
           ),
         ),
         const SizedBox(height: 8),
@@ -147,7 +147,7 @@ class WaitingScreen extends StatelessWidget {
 
   Widget _feltButton(IconData icon, String label, VoidCallback onTap) {
     return Material(
-      color: Colors.black.withValues(alpha: 0.28),
+      color: Colors.black.withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -157,9 +157,9 @@ class WaitingScreen extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 15, color: SamrahColors.onTable),
+              Icon(icon, size: 15, color: SamrahColors.onFelt),
               const SizedBox(width: 4),
-              Text(label, style: const TextStyle(color: SamrahColors.onTable, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(label, style: const TextStyle(color: SamrahColors.onFelt, fontSize: 12, fontWeight: FontWeight.w600)),
             ],
           ),
         ),

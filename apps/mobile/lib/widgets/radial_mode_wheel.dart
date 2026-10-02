@@ -16,13 +16,13 @@ import 'package:flutter/services.dart';
 import '../screens/settings_screen.dart' show AppSettings;
 
 /// Accent for the active wedge's border and the centre button — change it here.
-const kWheelAccent = Color(0xFFD6A850);
+const kWheelAccent = Color(0xFFFA8112);
 
 /// The centre button's pulse ring: a lighter tone of the accent.
-const kWheelPulse = Color(0xFFE8C27A);
+const kWheelPulse = Color(0xFFFFB066);
 
 /// Icon and label on the accent-filled centre button.
-const kWheelOnAccent = Color(0xFF2A1C05);
+const kWheelOnAccent = Color(0xFF222222);
 
 class RadialOption {
   const RadialOption({required this.label, required this.icon, required this.action, required this.onSelected});
@@ -350,11 +350,14 @@ class _WheelPainter extends CustomPainter {
   /// the app's text style (its font), so wedge labels match the rest of the screen
   final TextStyle baseStyle;
 
-  static const _fill = Color(0xFF2A241E);
-  static const _border = Color(0xFF4A4036);
-  static const _ink = Color(0xFFB3A78F);
-  static const _activeFill = Color(0xFF3E3222);
-  static const _activeInk = Color(0xFFF3EADB);
+  // each wedge is a light-to-dark gradient, the top one brighter
+  static const _fillTop = Color(0xFF3E3E3E);
+  static const _fillBottom = Color(0xFF2A2A2A);
+  static const _activeTop = Color(0xFFFF9A3D);
+  static const _activeBottom = Color(0xFFE06F08);
+  static const _border = Color(0xFF8A8372);
+  static const _ink = Color(0xFFF5E7C6);
+  static const _activeInk = Color(0xFF222222);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -372,7 +375,15 @@ class _WheelPainter extends CustomPainter {
         ..arcTo(Rect.fromCircle(center: c, radius: outer), mid - half, 2 * half, true)
         ..arcTo(Rect.fromCircle(center: c, radius: geo.inner), mid + half, -2 * half, false)
         ..close();
-      canvas.drawPath(path, Paint()..color = Color.lerp(_fill, _activeFill, h)!);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color.lerp(_fillTop, _activeTop, h)!, Color.lerp(_fillBottom, _activeBottom, h)!],
+          ).createShader(path.getBounds()),
+      );
       canvas.drawPath(
         path,
         Paint()

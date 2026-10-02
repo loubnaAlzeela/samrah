@@ -80,7 +80,7 @@ class _BalootGameScreenState extends State<BalootGameScreen> with TurnClock {
     }
     return Container(
       decoration: const BoxDecoration(
-        gradient: RadialGradient(center: Alignment(0, -0.3), radius: 1.1, colors: [Color(0xFF2C2420), SamrahColors.bg]),
+        gradient: RadialGradient(center: Alignment(0, -0.3), radius: 1.1, colors: [Color(0xFF383838), SamrahColors.bg]),
       ),
       alignment: Alignment.topCenter,
       child: FittedBox(

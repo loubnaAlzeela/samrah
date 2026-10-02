@@ -70,8 +70,8 @@ class GameOverOverlay extends StatelessWidget {
 
   static const _ribbonWin = [Color(0xFFF08A2C), Color(0xFFD9541E)];
   static const _ribbonLose = [Color(0xFF5E6A78), Color(0xFF3E4752)];
-  static const _box = Color(0xFF3B3431);
-  static const _boxInner = Color(0xFF2A2421);
+  static const _box = Color(0xFF333333);
+  static const _boxInner = Color(0xFF222222);
   static const _green = [Color(0xFF3CC45A), Color(0xFF1E9A3C)];
 
   @override

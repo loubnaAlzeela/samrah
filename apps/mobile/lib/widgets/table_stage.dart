@@ -22,7 +22,7 @@ class TableFelt extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFB9AE9F), SamrahColors.tableRim, Color(0xFF5E554B)],
+          colors: [Color(0xFFFFB066), SamrahColors.tableRim, Color(0xFFB85600)],
         ),
         boxShadow: const [BoxShadow(color: Color(0xB3000000), blurRadius: 24, offset: Offset(0, 12))],
       ),
@@ -105,7 +105,7 @@ class SeatAvatar extends StatelessWidget {
             height: size - 8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const RadialGradient(colors: [Color(0xFF4A3D35), SamrahColors.avatarBg], center: Alignment(-0.3, -0.4)),
+              gradient: const RadialGradient(colors: [Color(0xFF555555), SamrahColors.avatarBg], center: Alignment(-0.3, -0.4)),
               border: Border.all(color: SamrahColors.avatarRing, width: 2),
               boxShadow: const [BoxShadow(color: Color(0x80000000), blurRadius: 6, offset: Offset(0, 2))],
             ),
@@ -237,7 +237,7 @@ class ScoreDiamond extends StatelessWidget {
           decoration: BoxDecoration(
             color: SamrahColors.scorebox,
             borderRadius: BorderRadius.circular(8),
-            border: us ? Border.all(color: const Color(0xFF5A4A3E)) : null,
+            border: us ? Border.all(color: const Color(0xFF8A8372)) : null,
           ),
           child: Builder(builder: (_) {
             final style = TextStyle(color: center ? SamrahColors.onTableAccent : SamrahColors.text, fontWeight: FontWeight.w700, fontSize: 13, height: 1);
