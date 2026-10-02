@@ -6,35 +6,41 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../services/store.dart';
 import '../theme/samrah_theme.dart';
 import 'motion.dart';
 import 'playing_card_view.dart';
 
-/// The table surface: wine felt with a raised warm-grey rim.
+/// The table surface: light felt with a raised rim, in the design chosen in the
+/// store (or [style], for previews).
 class TableFelt extends StatelessWidget {
-  const TableFelt({super.key});
+  const TableFelt({super.key, this.style, this.radius = 34});
+  final TableStyle? style;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
+    if (style != null) return _felt(style!);
+    return ListenableBuilder(listenable: Store.instance, builder: (_, _) => _felt(Store.instance.table));
+  }
+
+  Widget _felt(TableStyle s) {
+    final rim = radius * 7 / 34;
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(34),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFB066), SamrahColors.tableRim, Color(0xFFB85600)],
-        ),
-        boxShadow: const [BoxShadow(color: Color(0xB3000000), blurRadius: 24, offset: Offset(0, 12))],
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: s.rim),
+        boxShadow: [BoxShadow(color: const Color(0xB3000000), blurRadius: radius * 0.7, offset: Offset(0, radius * 0.35))],
       ),
-      padding: const EdgeInsets.all(7),
+      padding: EdgeInsets.all(rim),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          gradient: const RadialGradient(
-            center: Alignment(0, -0.2),
+          borderRadius: BorderRadius.circular(radius - rim),
+          gradient: RadialGradient(
+            center: const Alignment(0, -0.2),
             radius: 1.0,
-            colors: [SamrahColors.tableCenter, SamrahColors.tableMid, SamrahColors.tableEdge],
-            stops: [0, 0.6, 1],
+            colors: [s.center, s.mid, s.edge],
+            stops: const [0, 0.6, 1],
           ),
         ),
       ),

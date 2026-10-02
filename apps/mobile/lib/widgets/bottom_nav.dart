@@ -5,9 +5,15 @@ import 'package:flutter/material.dart';
 import '../theme/samrah_theme.dart';
 
 class BottomNav extends StatelessWidget {
-  const BottomNav({super.key, required this.index, required this.onTap});
+  const BottomNav({super.key, required this.index, required this.onTap, this.challengeBadge = 0, this.clubsLocked = true});
   final int index;
   final ValueChanged<int> onTap;
+
+  /// Finished challenges whose prize is waiting; no badge at 0.
+  final int challengeBadge;
+
+  /// The clubs tab carries a small lock until they open.
+  final bool clubsLocked;
 
   static const _items = [
     (Icons.storefront_outlined, 'المتجر'),
@@ -56,16 +62,16 @@ class BottomNav extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Icon(icon, color: color, size: 24),
-              if (i == 3)
+              if (i == 3 && clubsLocked)
                 const Positioned(right: -2, top: -2, child: Icon(Icons.lock, size: 12, color: SamrahColors.textMuted)),
-              if (i == 4)
+              if (i == 4 && challengeBadge > 0)
                 Positioned(
                   right: -6,
                   top: -6,
                   child: Container(
                     padding: const EdgeInsets.all(3),
                     decoration: const BoxDecoration(color: SamrahColors.suitRed, shape: BoxShape.circle),
-                    child: const Text('3', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
+                    child: Text('$challengeBadge', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
                   ),
                 ),
             ],

@@ -3,8 +3,9 @@
 // the radial wheel of actions above the bottom nav, and the bottom nav. Icons use Material's outline set as a pragmatic stand-in for
 // the spec's custom line icons (no Jawaker art either way).
 //
-// Wallets ("وحدات" / "نجوم"), levels, store, clubs and challenges are
-// DISPLAY ONLY — no backend yet (see layout-v3.md §10). Real gameplay
+// The wallets and the store run on demo balances (lib/services/store.dart);
+// challenges and clubs run on demo data (lib/services/challenges.dart,
+// clubs.dart); levels are DISPLAY ONLY — no backend yet (see layout-v3.md §10). Real gameplay
 // (bidding, trump, play) is fully wired; «لعبة ودية», «إنشاء لعبة» and
 // «القوانين» lead somewhere real right now.
 import 'dart:async';
@@ -15,12 +16,19 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/samrah_theme.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/radial_mode_wheel.dart';
+import 'challenges_screen.dart';
+import 'clubs_screen.dart';
+import 'competitions_screen.dart';
 import 'games_screen.dart';
 import 'new_game_sheet.dart';
 import 'placeholder_screen.dart';
 import 'room_screen.dart';
 import 'rules_screen.dart';
 import 'settings_screen.dart';
+import 'store_screen.dart';
+import '../services/challenges.dart';
+import '../services/clubs.dart';
+import '../services/store.dart';
 import '../widgets/motion.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -92,19 +100,34 @@ class _HomeScreenState extends State<HomeScreen> {
         bottom: false,
         child: _body(letter),
       ),
-      bottomNavigationBar: BottomNav(index: _navIndex, onTap: _onNav),
+      bottomNavigationBar: ListenableBuilder(
+        listenable: Listenable.merge([Challenges.instance, Clubs.instance]),
+        builder: (_, _) => BottomNav(
+          index: _navIndex,
+          onTap: _onNav,
+          challengeBadge: Challenges.instance.claimableCount,
+          clubsLocked: !Clubs.instance.demoUnlocked,
+        ),
+      ),
       ),
     );
   }
 
   void _onNav(int i) {
     if (i == 2) return; // already home
+    if (i == 0) {
+      _push(const StoreScreen());
+      return;
+    }
     if (i == 1) {
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => GamesScreen(playerName: widget.playerName)));
       return;
     }
-    final labels = ['المتجر', '', '', 'الأندية', 'التحديات'];
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => PlaceholderScreen(title: labels[i])));
+    if (i == 3) {
+      _push(ClubsScreen(playerName: widget.playerName));
+      return;
+    }
+    if (i == 4) _push(const ChallengesScreen());
   }
 
   Widget _header(String letter) {
@@ -114,16 +137,19 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // right edge: the wallets, one above the other (same width)
-          IntrinsicWidth(
+          ListenableBuilder(
+            listenable: Store.instance,
+            builder: (_, _) => IntrinsicWidth(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _wallet(icon: Icons.star, label: 'نجوم', value: 0),
+                _wallet(icon: const StarIcon(size: 16), value: Store.instance.stars, tab: 0),
                 const SizedBox(height: 8),
-                _wallet(icon: Icons.circle, label: 'وحدات', value: 0),
+                _wallet(icon: const UnitIcon(size: 16), value: Store.instance.units, tab: 0),
               ],
             ),
+          ),
           ),
           const SizedBox(width: 10),
           // the player, centred and given the room
@@ -233,31 +259,32 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _wallet({required IconData icon, required String label, required int value}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: SamrahColors.surface,
-        borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: SamrahColors.line),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: SamrahColors.onTableAccent),
-          const SizedBox(width: 4),
-          Text(
-            '$value',
-            style: const TextStyle(color: SamrahColors.text, fontSize: 12, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(width: 4),
-          Container(
-            width: 18,
-            height: 18,
-            decoration: const BoxDecoration(color: SamrahColors.surface2, shape: BoxShape.circle),
-            child: const Icon(Icons.add, size: 12, color: SamrahColors.text),
-          ),
-        ],
+  Widget _wallet({required Widget icon, required int value, required int tab}) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(19),
+      onTap: () => _push(StoreScreen(initialTab: tab)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: SamrahColors.surface,
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: SamrahColors.line),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            const SizedBox(width: 4),
+            CountUp(value: value, style: const TextStyle(color: SamrahColors.text, fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 4),
+            Container(
+              width: 18,
+              height: 18,
+              decoration: const BoxDecoration(color: SamrahColors.surface2, shape: BoxShape.circle),
+              child: const Icon(Icons.add, size: 12, color: SamrahColors.text),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -373,6 +400,12 @@ class _HomeScreenState extends State<HomeScreen> {
       options: [
         RadialOption(label: 'لعبة ودية', icon: Icons.play_arrow_rounded, action: 'العب', onSelected: () => _openRoomFlow(auto: true)),
         RadialOption(label: 'إنشاء لعبة', icon: Icons.add_rounded, action: 'أنشئ', onSelected: _openNewGameSheet),
+        RadialOption(
+          label: 'المسابقات',
+          icon: Icons.military_tech_outlined,
+          action: 'ادخل',
+          onSelected: () => _push(CompetitionsScreen(playerName: widget.playerName, variant: _variant)),
+        ),
         RadialOption(label: 'الألعاب العامة', icon: Icons.public, action: 'تصفّح', onSelected: () => _soon('الألعاب العامة')),
         RadialOption(
           label: 'القوانين',

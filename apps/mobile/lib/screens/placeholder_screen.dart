@@ -1,5 +1,5 @@
-// Generic "قريباً" screen for tabs with no backend yet (المتجر، الأندية،
-// التحديات) — see design/layout-v3.md §9: "شكل بس بهالمرحلة".
+// Generic "قريباً" screen for tabs with no backend yet (الرسائل،
+// التنبيهات) — see design/layout-v3.md §9: "شكل بس بهالمرحلة".
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 

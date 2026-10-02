@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/game_card.dart';
+import '../services/store.dart';
 import '../theme/samrah_theme.dart';
 import 'suit_icon.dart';
 
@@ -138,20 +139,28 @@ extension on PlayingCardView {
   }
 }
 
-/// Face-down card: wine with a cream rim and an inner brass rule and diamond.
+/// Face-down card: the back chosen in the store (or [style], for previews) — a
+/// coloured back with a rim, an inner rule and a mark in the middle.
 class CardBack extends StatelessWidget {
-  const CardBack({super.key, this.width = 28});
+  const CardBack({super.key, this.width = 28, this.style});
   final double width;
+  final CardBackStyle? style;
 
   @override
   Widget build(BuildContext context) {
+    if (style != null) return _back(style!);
+    return ListenableBuilder(listenable: Store.instance, builder: (_, _) => _back(Store.instance.cardBack));
+  }
+
+  Widget _back(CardBackStyle s) {
     final w = width;
+    final markSize = w * 0.3;
     return Container(
       width: w,
       height: w * PlayingCardView.aspect,
       decoration: BoxDecoration(
-        color: SamrahColors.cardBack,
-        border: Border.all(color: SamrahColors.cardFace, width: (w * 0.06).clamp(1.0, 3.0)),
+        color: s.color,
+        border: Border.all(color: s.rim, width: (w * 0.06).clamp(1.0, 3.0)),
         borderRadius: BorderRadius.circular(w * 0.12),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 3, offset: const Offset(0, 1))],
       ),
@@ -159,14 +168,19 @@ class CardBack extends StatelessWidget {
         padding: EdgeInsets.all(w * 0.08),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            border: Border.all(color: SamrahColors.cardBackStar.withValues(alpha: 0.6), width: 1),
+            border: Border.all(color: s.mark.withValues(alpha: 0.6), width: 1),
             borderRadius: BorderRadius.circular(w * 0.06),
           ),
           child: Center(
-            child: Transform.rotate(
-              angle: 0.785398,
-              child: Container(width: w * 0.22, height: w * 0.22, color: SamrahColors.cardBackStar),
-            ),
+            child: switch (s.symbol) {
+              BackSymbol.diamond => Transform.rotate(
+                  angle: 0.785398,
+                  child: Container(width: w * 0.22, height: w * 0.22, color: s.mark),
+                ),
+              BackSymbol.star => Icon(Icons.star_rounded, color: s.mark, size: markSize * 1.3),
+              BackSymbol.spade => SuitIcon(suit: 'S', size: markSize, color: s.mark),
+              BackSymbol.heart => SuitIcon(suit: 'H', size: markSize, color: s.mark),
+            },
           ),
         ),
       ),
