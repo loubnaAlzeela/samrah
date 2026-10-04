@@ -23,6 +23,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+import 'prefs.dart';
 import 'voice_clips.dart';
 
 enum Sfx { cardThrow, deal, collect, place, turn, tap, tick, win, lose }
@@ -51,11 +52,13 @@ class Sound {
   Sound._();
   static final Sound instance = Sound._();
 
-  /// effects on / off (the ≡ menu at the table)
-  bool effects = true;
+  /// effects on / off (the ≡ menu at the table, and the settings); kept on the phone
+  bool get effects => Prefs.getBool(Prefs.effects) ?? true;
+  set effects(bool v) => Prefs.setBool(Prefs.effects, v);
 
-  /// spoken choices on / off
-  bool voice = true;
+  /// spoken choices on / off; kept on the phone
+  bool get voice => Prefs.getBool(Prefs.voice) ?? true;
+  set voice(bool v) => Prefs.setBool(Prefs.voice, v);
 
   static final bool _underTest = Platform.environment.containsKey('FLUTTER_TEST');
 

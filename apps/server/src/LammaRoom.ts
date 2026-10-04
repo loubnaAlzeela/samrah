@@ -26,6 +26,8 @@ import {
   CHAT_RATE_MS,
   filterChat,
   gameProgress,
+  matchWinners,
+  seatRanking,
   hasTeams,
   seatCount,
   isCard,
@@ -35,6 +37,10 @@ import {
   newAnyGame,
   viewForAny,
 } from '@lamma/rules';
+import { type User, levelOf, recordMatch, userById, userByToken, isVip } from './accounts.ts';
+import { giveGift } from './gifts.ts';
+import { type MatchRoomSpec, isLiveMatch, matchRoomClosed, reportMatch } from './competitions.ts';
+import { ApiError } from './util.ts';
 
 // Timings. The env overrides exist so tests can shorten them; production uses the defaults.
 const num = (v: string | undefined, d: number) => (v !== undefined && v !== '' && Number.isFinite(Number(v)) ? Number(v) : d);
@@ -54,6 +60,8 @@ const TRICK_PAUSE_MS = num(process.env.LAMMA_TRICK_PAUSE_MS, 1200);
 const HAND_PAUSE_MS = num(process.env.LAMMA_HAND_PAUSE_MS, 5000);
 const EMPTY_ROOM_DISPOSE_MS = RECONNECT_SECONDS * 1000;
 const GUEST_LEVEL = 1;
+/** a competition table waits this long for its players, then the computer takes the empty seats */
+const COMP_SHOW_UP_MS = num(process.env.LAMMA_COMP_SHOWUP_MS, 3 * 60 * 1000);
 /** «العب الآن»: a quick-match room waits this long for humans, then fills with computers and starts. */
 export const QUICK_FILL_MS = num(process.env.LAMMA_QUICK_FILL_MS, 20000);
 
@@ -87,11 +95,16 @@ interface SeatInfo {
   bot: boolean;
   level: number;
   lastChatAt: number;
+  /** the player's account (null = a guest from an older app, or a computer) */
+  uid: string | null;
+  vip: boolean;
+  lastGiftAt: number;
 }
 
 interface Member {
   name: string;
   token: string;
+  uid: string | null;
 }
 
 export function cleanName(x: unknown): string | null {
@@ -108,6 +121,8 @@ export interface CreateOptions {
   settings?: unknown;
   /** created by «العب الآن» (quick match): public, starts by itself */
   quick?: unknown;
+  /** a competition match (set by the server itself, never by an app) */
+  competition?: MatchRoomSpec;
 }
 
 export class LammaRoom extends Room {
@@ -135,6 +150,13 @@ export class LammaRoom extends Room {
   turnDeadline: number | null = null;
   quick = false;
   quickTimer: Delayed | null = null;
+  /** a competition match: only these players may sit, each in their own seat */
+  competition: MatchRoomSpec | null = null;
+  /** competition seats whose player came at least once */
+  showedUp = new Set<number>();
+  showUpTimer: Delayed | null = null;
+  /** the finished game was recorded (stats, levels, challenges, competition) */
+  recorded = false;
 
   get target() {
     return this.settings.target;
@@ -152,6 +174,14 @@ export class LammaRoom extends Room {
       this.quick = true;
       this.settings = { ...this.settings, visibility: 'public' };
       this.quickTimer = this.clock.setTimeout(() => this.quickStart(), QUICK_FILL_MS);
+    }
+    if (options.competition !== undefined) {
+      const spec = options.competition;
+      if (!spec || typeof spec !== 'object' || !Array.isArray(spec.seats) || !isLiveMatch(spec)) throw new ServerError(403, 'badMatch');
+      this.competition = spec;
+      this.seats = Array(spec.seats.length).fill(null);
+      this.settings = { ...this.settings, visibility: 'private', kick: false };
+      this.showUpTimer = this.clock.setTimeout(() => this.competitionStart(), COMP_SHOW_UP_MS);
     }
     const code = newCode();
     activeCodes.add(code);
@@ -236,15 +266,21 @@ export class LammaRoom extends Room {
     // "I'm back": a player the autopilot took over (3 timeouts) touches the screen
     this.onMessage('back', (client) => this.handleBack(client));
     this.onMessage('chat', (client, msg: { text?: unknown }) => this.handleChat(client, msg?.text));
+    this.onMessage('gift', (client, msg: { seat?: unknown; gift?: unknown }) => this.handleGift(client, msg?.seat, msg?.gift));
     this.onMessage('rematch', (client) => this.handleRematch(client));
     this.onMessage('*', (client) => this.reject(client, 'unknownMessage'));
     this.scheduleDisposeIfEmpty();
   }
 
-  onJoin(client: Client, options: { name?: unknown; token?: unknown }) {
+  onJoin(client: Client, options: { name?: unknown; token?: unknown; auth?: unknown }) {
     const token = typeof options?.token === 'string' ? options.token : null;
     if (token && this.banned.has(token)) throw new ServerError(403, 'kicked');
-    const seatIdx = token ? this.seats.findIndex((s) => s && !s.bot && s.token === token) : -1;
+    // the player's account: their real name and level, and their results counted when the game ends
+    const user = userByToken(options?.auth);
+    let seatIdx = token ? this.seats.findIndex((s) => s && !s.bot && s.token === token) : -1;
+    // the same account coming back from another connection (its seat token was lost) takes its seat back
+    if (seatIdx < 0 && user) seatIdx = this.seats.findIndex((s) => s && !s.bot && s.uid === user.id);
+    if (this.competition) return this.joinCompetition(client, user, seatIdx);
 
     if (seatIdx >= 0) {
       // Rejoin into a held seat (page refresh, network drop, second tab takes over). The player takes the seat
@@ -255,7 +291,7 @@ export class LammaRoom extends Room {
       seat.heldUntil = null;
       seat.timer?.clear();
       seat.timer = null;
-      this.members.set(client.sessionId, { name: seat.name, token: seat.token });
+      this.members.set(client.sessionId, { name: seat.name, token: seat.token, uid: seat.uid });
       if (old) {
         this.members.delete(old.sessionId);
         old.leave(CLOSE_REPLACED, 'replaced');
@@ -266,19 +302,21 @@ export class LammaRoom extends Room {
         this.scheduleTurn(); // the turn may be this seat's: give the human a full timer again
       }
     } else {
-      const name = cleanName(options?.name);
+      const name = user ? user.name : cleanName(options?.name);
       if (!name) throw new ServerError(400, 'badName');
+      // the table's lowest level (the host's own seat is exempt: it is the first member)
+      if (this.members.size > 0 && (user ? levelOf(user.xp) : GUEST_LEVEL) < this.settings.minLevel) throw new ServerError(403, 'lowLevel');
       if (this.status === 'waiting') {
         const tok = newToken();
-        this.members.set(client.sessionId, { name, token: tok });
+        this.members.set(client.sessionId, { name, token: tok, uid: user?.id ?? null });
         // take the first empty seat automatically (the player can still move before the start)
         const free = this.seats.findIndex((s) => s === null);
-        if (free >= 0) this.seats[free] = this.newSeat(name, tok, client.sessionId);
+        if (free >= 0) this.seats[free] = this.newSeat(name, tok, client.sessionId, false, user);
       } else {
         // running / finished game: only a computer seat can be taken (at the end of the current trick)
         const bots = this.seats.filter((s) => s?.bot).length;
         if (this.pending.length >= bots) throw new ServerError(403, 'gameFull');
-        this.members.set(client.sessionId, { name, token: newToken() });
+        this.members.set(client.sessionId, { name, token: newToken(), uid: user?.id ?? null });
         this.pending.push(client.sessionId);
       }
     }
@@ -311,12 +349,92 @@ export class LammaRoom extends Room {
 
   onDispose() {
     activeCodes.delete(this.roomId);
+    if (this.competition) matchRoomClosed(this.roomId);
   }
 
   // ---------------------------------------------------------------------------
 
-  private newSeat(name: string, token: string, sessionId: string | null, bot = false): SeatInfo {
-    return { name, token, sessionId, heldUntil: null, timer: null, auto: bot, timeouts: 0, bot, level: GUEST_LEVEL, lastChatAt: 0 };
+  private newSeat(name: string, token: string, sessionId: string | null, bot = false, user: User | null = null): SeatInfo {
+    return {
+      name,
+      token,
+      sessionId,
+      heldUntil: null,
+      timer: null,
+      auto: bot,
+      timeouts: 0,
+      bot,
+      level: user ? levelOf(user.xp) : GUEST_LEVEL,
+      lastChatAt: 0,
+      uid: user?.id ?? null,
+      vip: user ? isVip(user) : false,
+      lastGiftAt: 0,
+    };
+  }
+
+  // -- competition matches ---------------------------------------------------
+
+  /** Only the seated entries may come in, each to their own seat; no one waits for a computer seat. */
+  private joinCompetition(client: Client, user: User | null, heldIdx: number) {
+    const spec = this.competition!;
+    if (!user) throw new ServerError(401, 'signedOut');
+    const idx = heldIdx >= 0 ? heldIdx : spec.seats.indexOf(user.id);
+    if (idx < 0) throw new ServerError(403, 'notInMatch');
+    const seat = this.seats[idx];
+    if (seat && !seat.bot && seat.uid === user.id) {
+      const old = seat.sessionId ? this.clients.find((c) => c.sessionId === seat.sessionId) : undefined;
+      seat.sessionId = client.sessionId;
+      seat.heldUntil = null;
+      seat.timer?.clear();
+      seat.timer = null;
+      if (old) {
+        this.members.delete(old.sessionId);
+        old.leave(CLOSE_REPLACED, 'replaced');
+      }
+      if (seat.auto || seat.timeouts) {
+        seat.auto = false;
+        seat.timeouts = 0;
+        this.scheduleTurn();
+      }
+    } else if (!seat) {
+      this.seats[idx] = this.newSeat(user.name, newToken(), client.sessionId, false, user);
+    } else {
+      // the computer took this seat because the player came late: they are out of this match
+      throw new ServerError(403, 'tooLate');
+    }
+    this.showedUp.add(idx);
+    const info = this.seats[idx]!;
+    this.members.set(client.sessionId, { name: info.name, token: info.token, uid: user.id });
+    this.disposeTimer?.clear();
+    this.disposeTimer = null;
+    client.send('welcome', { token: info.token, code: this.roomId });
+    // everyone came: play now
+    if (this.status === 'waiting' && spec.seats.every((uid, i) => !uid || this.seats[i]?.uid === uid)) this.competitionStart();
+    this.changed();
+  }
+
+  /** Empty seats (players who did not come, and seats with no player at all) go to the computer, and play starts. */
+  private competitionStart() {
+    this.showUpTimer?.clear();
+    this.showUpTimer = null;
+    if (this.status !== 'waiting') return;
+    for (let i = 0; i < this.seats.length; i++) if (!this.seats[i]) this.seats[i] = this.botSeat();
+    this.startGame();
+    this.changed();
+  }
+
+  /** A finished game: every player's statistics, level and challenges, and the competition's result. */
+  private recordResult() {
+    if (this.recorded || !this.game || this.game.phase !== 'gameOver') return;
+    this.recorded = true;
+    const winners = new Set(matchWinners(this.game));
+    const humans = this.seats.filter((s) => s && !s.bot).length;
+    const withFriend = this.settings.visibility === 'private' && humans >= 2 && !this.competition;
+    this.seats.forEach((s, i) => {
+      const u = s && !s.bot && s.uid ? userById(s.uid) : null;
+      if (u) recordMatch(u, { variant: this.variant, won: winners.has(i), withFriend });
+    });
+    if (this.competition) reportMatch(this.competition, seatRanking(this.game), [...this.showedUp]);
   }
 
   private botSeat(): SeatInfo {
@@ -330,7 +448,7 @@ export class LammaRoom extends Room {
     if (!seat || seat.sessionId) return;
     seat.timer = null;
     seat.heldUntil = null;
-    if (this.status === 'waiting') {
+    if (this.status === 'waiting' && !this.competition) {
       this.seats[idx] = null;
     } else if (this.status === 'playing') {
       // away too long: the autopilot keeps playing for them until they come back with their token
@@ -343,9 +461,11 @@ export class LammaRoom extends Room {
   private scheduleDisposeIfEmpty() {
     if (this.clients.length > 0 || this.disposeTimer) return;
     this.disposeTimer = this.clock.setTimeout(() => {
-      if (this.clients.length === 0) this.disconnect();
       this.disposeTimer = null;
-    }, EMPTY_ROOM_DISPOSE_MS);
+      // a competition match is played to the end by the computer even if everyone left
+      if (this.competition && this.status !== 'finished') return this.scheduleDisposeIfEmpty();
+      if (this.clients.length === 0) this.disconnect();
+    }, this.competition && this.status === 'waiting' ? COMP_SHOW_UP_MS + EMPTY_ROOM_DISPOSE_MS : EMPTY_ROOM_DISPOSE_MS);
   }
 
   private reject(client: Client, error: string) {
@@ -388,6 +508,7 @@ export class LammaRoom extends Room {
   }
 
   private handleSit(client: Client, seatArg: unknown) {
+    if (this.competition) return this.reject(client, 'seatTaken');
     if (this.status !== 'waiting') return this.reject(client, 'gameStarted');
     const seat = Number(seatArg);
     if (!Number.isInteger(seat) || seat < 0 || seat >= this.seats.length) return this.reject(client, 'badSeat');
@@ -402,6 +523,7 @@ export class LammaRoom extends Room {
   }
 
   private handleStand(client: Client) {
+    if (this.competition) return;
     if (this.status !== 'waiting') return this.reject(client, 'gameStarted');
     const cur = this.seatOf(client);
     if (cur !== null) this.seats[cur] = null;
@@ -420,6 +542,7 @@ export class LammaRoom extends Room {
 
   /** Host starts now: empty seats are filled with computer players. */
   private handleStart(client: Client) {
+    if (this.competition) return this.reject(client, 'notOwner');
     if (this.status !== 'waiting') return this.reject(client, 'gameStarted');
     if (!this.isOwner(client)) return this.reject(client, 'notOwner');
     if (!this.seats.some((s) => s && !s.bot)) return this.reject(client, 'noPlayers');
@@ -429,6 +552,7 @@ export class LammaRoom extends Room {
   }
 
   private handleSettings(client: Client, patch: unknown) {
+    if (this.competition) return this.reject(client, 'notOwner');
     if (this.status !== 'waiting') return this.reject(client, 'gameStarted');
     if (!this.isOwner(client)) return this.reject(client, 'notOwner');
     const next = mergeSettings(this.settings, patch, this.variant);
@@ -494,6 +618,7 @@ export class LammaRoom extends Room {
 
   /** Before the start the chooser picks a partner among seated players; that player moves opposite the chooser. */
   private handlePartner(client: Client, seatArg: unknown) {
+    if (this.competition) return this.reject(client, 'notChooser');
     if (this.status !== 'waiting') return this.reject(client, 'gameStarted');
     if (!hasTeams(this.variant)) return this.reject(client, 'noTeams');
     const chooser = this.partnerChooser();
@@ -517,7 +642,36 @@ export class LammaRoom extends Room {
     if (!text) return this.reject(client, 'badChat');
     info.lastChatAt = now;
     const msg: ChatMessage = { seat, text, at: now };
-    for (const c of this.clients) c.send('chat', msg);
+    for (const c of this.clients) if (!this.blocks(c, info.uid)) c.send('chat', msg);
+  }
+
+  /** The player on [client] blocked the account [uid]: their messages and gifts do not reach them. */
+  private blocks(client: Client, uid: string | null): boolean {
+    const viewer = this.members.get(client.sessionId)?.uid;
+    return !!uid && !!viewer && !!userById(viewer)?.blocked.includes(uid);
+  }
+
+  /** A gift from one seat to another: paid from the giver's wallet, seen by the whole table. */
+  private handleGift(client: Client, seatArg: unknown, gift: unknown) {
+    const from = this.seatOf(client);
+    if (from === null) return;
+    const giver = this.seats[from]!;
+    const to = Number(seatArg);
+    const target = Number.isInteger(to) ? this.seats[to] : null;
+    if (!target || target.bot || !target.uid || to === from) return this.reject(client, 'badGift');
+    const now = Date.now();
+    if (now - giver.lastGiftAt < 2000) return this.reject(client, 'tooFast');
+    const u = giver.uid ? userById(giver.uid) : null;
+    const r = target.uid ? userById(target.uid) : null;
+    if (!u || !r) return this.reject(client, 'signedOut');
+    try {
+      const g = giveGift(u, r, gift);
+      giver.lastGiftAt = now;
+      for (const c of this.clients) if (!this.blocks(c, giver.uid)) c.send('gift', { from, to, gift: g.id, at: now });
+      client.send('wallet', { units: u.units, stars: u.stars });
+    } catch (e) {
+      this.reject(client, e instanceof ApiError ? e.code : 'badGift');
+    }
   }
 
   private handleBack(client: Client) {
@@ -534,6 +688,7 @@ export class LammaRoom extends Room {
   private startGame() {
     this.game = newAnyGame({ variant: this.variant, target: this.target, players: this.seats.length }, randomInt);
     this.status = 'playing';
+    this.recorded = false;
     for (const s of this.seats) if (s) Object.assign(s, { auto: s.bot, timeouts: 0 });
     // anyone connected without a seat cannot watch (no spectators)
     for (const c of this.clients) {
@@ -546,7 +701,7 @@ export class LammaRoom extends Room {
   }
 
   private handleRematch(client: Client) {
-    if (this.status !== 'finished' || this.seatOf(client) === null) return this.reject(client, 'noRematch');
+    if (this.status !== 'finished' || this.seatOf(client) === null || this.competition) return this.reject(client, 'noRematch');
     if (!this.seats.every((s) => s && (s.bot || s.sessionId))) return this.reject(client, 'playersMissing');
     this.startGame();
     this.changed();
@@ -624,7 +779,10 @@ export class LammaRoom extends Room {
   /** Schedule server-driven transitions (collect trick, next hand), restart the turn timer, push views. */
   private afterChange() {
     const g = this.game!;
-    if (g.phase === 'gameOver') this.status = 'finished';
+    if (g.phase === 'gameOver') {
+      this.status = 'finished';
+      this.recordResult();
+    }
     if ((g.phase === 'trickDone' || g.phase === 'handOver') && !this.advanceTimer) {
       const delay = g.phase === 'trickDone' ? TRICK_PAUSE_MS : HAND_PAUSE_MS;
       this.advanceTimer = this.clock.setTimeout(() => {
@@ -673,6 +831,8 @@ export class LammaRoom extends Room {
             auto: s.auto,
             bot: s.bot,
             level: s.level,
+            uid: s.uid,
+            vip: s.vip,
           }
         : null,
     );

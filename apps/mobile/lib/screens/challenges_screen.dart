@@ -1,8 +1,8 @@
 // التحديات (`s-ch`) — design/layout-v3.md §9: a segmented اليوم / الأسبوع, then
 // one card per task (title, 8px progress bar, the `2/3` counter) with its prize
 // in stars; a finished task shows the orange «استلم» in its place (one at a time:
-// the first claimable card gets it, the others a neutral button). DEMO — see
-// lib/services/challenges.dart.
+// the first claimable card gets it, the others a neutral button). Progress comes
+// from the player's real games, counted by the server (lib/services/challenges.dart).
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -31,6 +31,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     super.initState();
     // the reset countdown
     _clock = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+    _ch.load();
   }
 
   @override
@@ -76,6 +77,16 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
       body: ListenableBuilder(
         listenable: _ch,
         builder: (context, _) {
+          if (!_ch.loaded) {
+            return Center(
+              child: _ch.error == null
+                  ? const CircularProgressIndicator()
+                  : Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(_ch.error!, style: const TextStyle(color: SamrahColors.textMuted)),
+                      TextButton(onPressed: _ch.load, child: const Text('أعد المحاولة')),
+                    ]),
+            );
+          }
           final list = _weekly ? _ch.weekly : _ch.daily;
           final firstClaimable = list.indexWhere((c) => c.claimable);
           final doneCount = list.where((c) => c.done).length;
@@ -117,7 +128,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                 ),
               const SizedBox(height: 6),
               const Text(
-                'نسخة تجريبية: التقدّم في التحديات تمثيلي الآن، وسيُحسب لاحقاً من جولاتك الحقيقية. النجوم التي تستلمها تُضاف فعلاً إلى رصيدك.',
+                'يُحسب التقدّم من جولاتك الحقيقية عند انتهاء كل جولة.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: SamrahColors.textMuted, fontSize: 12),
               ),
@@ -165,12 +176,13 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
         ]),
       );
     } else if (c.claimable) {
-      void claim() {
+      Future<void> claim() async {
         final reward = c.reward;
-        _ch.claim(c);
-        ScaffoldMessenger.of(context)
+        final messenger = ScaffoldMessenger.of(context);
+        final err = await _ch.claim(c);
+        messenger
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text('أُضيفت $reward نجمة إلى رصيدك'), duration: const Duration(seconds: 2)));
+          ..showSnackBar(SnackBar(content: Text(err ?? 'أُضيفت $reward نجمة إلى رصيدك'), duration: const Duration(seconds: 2)));
       }
 
       trailing = SizedBox(

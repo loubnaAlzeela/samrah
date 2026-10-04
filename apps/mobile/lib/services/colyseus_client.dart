@@ -14,9 +14,26 @@
 // this layer drives its own retry loop, with the same token.
 import 'dart:async';
 
+import 'account.dart';
 import 'colyseus_lite.dart';
 
 import '../models/room_view.dart';
+
+/// A table chat message: the seat that sent it and the text (the server filters and rate-limits it).
+class TableChat {
+  TableChat(this.seat, this.text, this.at);
+  final int seat;
+  final String text;
+  final DateTime at;
+}
+
+/// A gift sent across the table.
+class TableGift {
+  TableGift(this.from, this.to, this.gift);
+  final int from;
+  final int to;
+  final String gift;
+}
 
 enum ConnStatus { connecting, connected, reconnecting, closed }
 
@@ -36,6 +53,17 @@ class RoomConnection {
   final _stateCtrl = StreamController<RoomView>.broadcast();
   final _errorCtrl = StreamController<String>.broadcast();
   final _statusCtrl = StreamController<ConnStatus>.broadcast();
+  final _chatCtrl = StreamController<TableChat>.broadcast();
+  final _giftCtrl = StreamController<TableGift>.broadcast();
+
+  /// The last chat messages (the chat sheet shows them when it opens).
+  final List<TableChat> chatLog = [];
+
+  /// Table chat, as it arrives.
+  Stream<TableChat> get onChat => _chatCtrl.stream;
+
+  /// Gifts sent across the table, as they arrive.
+  Stream<TableGift> get onGift => _giftCtrl.stream;
 
   /// The room code the server assigned (shown to the player to share).
   String get code => _room?.id ?? _code;
@@ -59,6 +87,19 @@ class RoomConnection {
     });
     room.onMessage('state').listen((m) => _stateCtrl.add(RoomView.fromJson(m as Map)));
     room.onMessage('error').listen((m) => _errorCtrl.add((m as Map)['error']?.toString() ?? 'unknown'));
+    room.onMessage('chat').listen((m) {
+      final j = m as Map;
+      final c = TableChat((j['seat'] as num).toInt(), j['text'] as String, DateTime.fromMillisecondsSinceEpoch((j['at'] as num).toInt()));
+      chatLog.add(c);
+      if (chatLog.length > 100) chatLog.removeAt(0);
+      _chatCtrl.add(c);
+    });
+    room.onMessage('gift').listen((m) {
+      final j = m as Map;
+      _giftCtrl.add(TableGift((j['from'] as num).toInt(), (j['to'] as num).toInt(), j['gift'] as String));
+    });
+    // a gift was paid: the wallet changed
+    room.onMessage('wallet').listen((_) => Account.instance.refresh());
     unawaited(_leaveSub?.cancel());
     _leaveSub = room.onLeave.listen(_onLeave);
     status = ConnStatus.connected;
@@ -91,7 +132,7 @@ class RoomConnection {
       await Future.delayed(const Duration(seconds: 2));
       if (_closedByUs) return;
       try {
-        final room = await _client.joinById(_code, options: {'name': _playerName, if (_token != null) 'token': _token});
+        final room = await _client.joinById(_code, options: {'name': _playerName, if (_token != null) 'token': _token, 'auth': ?Account.instance.token});
         await _attach(room);
         return;
       } catch (_) {
@@ -127,7 +168,15 @@ class GameServerClient {
   /// [settings] is a partial `RoomSettings` (packages/rules/src/protocol.ts);
   /// the server merges it over its defaults and rejects invalid values.
   Future<RoomConnection> openRoom({required String playerName, String variant = 'tarneeb', Map<String, Object?>? settings}) async {
-    final room = await _client.create('lamma', options: {'variant': variant, 'name': playerName, 'settings': ?settings});
+    final room = await _client.create('lamma', options: {'variant': variant, 'name': playerName, 'settings': ?settings, 'auth': ?Account.instance.token});
+    final conn = RoomConnection._(_client, room.id, playerName);
+    await conn._attach(room);
+    return conn;
+  }
+
+  /// Joins a table by its code (a public table from the list, a friend's room, a competition match).
+  Future<RoomConnection> joinRoom({required String code, required String playerName}) async {
+    final room = await _client.joinById(code.trim().toUpperCase(), options: {'name': playerName, 'auth': ?Account.instance.token});
     final conn = RoomConnection._(_client, room.id, playerName);
     await conn._attach(room);
     return conn;

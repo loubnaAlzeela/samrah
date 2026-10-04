@@ -3,11 +3,9 @@
 // the radial wheel of actions above the bottom nav, and the bottom nav. Icons use Material's outline set as a pragmatic stand-in for
 // the spec's custom line icons (no Jawaker art either way).
 //
-// The wallets and the store run on demo balances (lib/services/store.dart);
-// challenges and clubs run on demo data (lib/services/challenges.dart,
-// clubs.dart); levels are DISPLAY ONLY — no backend yet (see layout-v3.md §10). Real gameplay
-// (bidding, trump, play) is fully wired; «لعبة ودية», «إنشاء لعبة» and
-// «القوانين» lead somewhere real right now.
+// The name, level, wallets and badges are the player's account on the server
+// (lib/services/account.dart), kept fresh in the background; every wheel option
+// and header icon leads to a real screen.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -21,13 +19,18 @@ import 'clubs_screen.dart';
 import 'competitions_screen.dart';
 import 'games_screen.dart';
 import 'new_game_sheet.dart';
-import 'placeholder_screen.dart';
+import 'chat_screen.dart';
+import 'leaderboard_screen.dart';
+import 'notifications_screen.dart';
 import 'room_screen.dart';
+import 'tables_screen.dart';
 import 'rules_screen.dart';
 import 'settings_screen.dart';
 import 'store_screen.dart';
+import '../services/account.dart';
 import '../services/challenges.dart';
 import '../services/clubs.dart';
+import '../services/push.dart';
 import '../services/store.dart';
 import '../widgets/motion.dart';
 
@@ -68,7 +71,14 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(gameServer.warmUp());
     // keeps the connection warm while the player browses (throttled inside warmUp)
     _warmTimer = Timer.periodic(const Duration(seconds: 10), (_) => unawaited(gameServer.warmUp()));
+    // the account, the badges, the challenges and clubs, and the phone's notifications
+    Account.instance.start();
+    unawaited(Challenges.instance.load());
+    unawaited(Clubs.instance.loadMine());
+    unawaited(Push.instance.start());
   }
+
+  String get _name => Account.instance.me?.name ?? widget.playerName;
 
   @override
   void dispose() {
@@ -79,19 +89,19 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openRoomFlow({required bool auto, Map<String, Object?>? settings}) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => RoomScreen(initialName: widget.playerName, autoOpen: auto, variant: _variant, settings: settings),
+        builder: (_) => RoomScreen(initialName: _name, autoOpen: auto, variant: _variant, settings: settings),
       ),
     );
   }
 
-  void _soon(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label — قريباً'), duration: const Duration(seconds: 2)));
-  }
-
   @override
   Widget build(BuildContext context) {
-    final trimmedName = widget.playerName.trim();
-    final letter = trimmedName.isNotEmpty ? trimmedName.substring(0, 1) : '؟';
+    return ListenableBuilder(listenable: Account.instance, builder: (context, _) => _build(context));
+  }
+
+  Widget _build(BuildContext context) {
+    final trimmedName = _name.trim();
+    final letter = trimmedName.isNotEmpty ? trimmedName.characters.first : '؟';
     final mq = MediaQuery.of(context);
     return MediaQuery(
       data: mq.copyWith(textScaler: mq.textScaler.clamp(maxScaleFactor: 1.15)),
@@ -106,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
           index: _navIndex,
           onTap: _onNav,
           challengeBadge: Challenges.instance.claimableCount,
-          clubsLocked: !Clubs.instance.demoUnlocked,
+          clubsLocked: Clubs.instance.loaded && !Clubs.instance.unlocked,
         ),
       ),
       ),
@@ -120,11 +130,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     if (i == 1) {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => GamesScreen(playerName: widget.playerName)));
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => GamesScreen(playerName: _name)));
       return;
     }
     if (i == 3) {
-      _push(ClubsScreen(playerName: widget.playerName));
+      _push(const ClubsScreen());
       return;
     }
     if (i == 4) _push(const ChallengesScreen());
@@ -157,25 +167,25 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 10),
           // left edge: messages and notifications
           _iconColumn([
-            (Icons.chat_bubble_outline, 'الرسائل', () => _push(const PlaceholderScreen(title: 'الرسائل'))),
-            (Icons.notifications_none, 'التنبيهات', () => _push(const PlaceholderScreen(title: 'التنبيهات'))),
+            (Icons.chat_bubble_outline, 'الرسائل', Account.instance.unreadMessages, () => _push(const MessagesScreen())),
+            (Icons.notifications_none, 'التنبيهات', Account.instance.unreadNotifications, () => _push(const NotificationsScreen())),
           ]),
         ],
       ),
     );
   }
 
-  void _push(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  void _push(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen)).then((_) => Account.instance.refresh());
 
   /// Icons 36 apart, each with a 44x44 touch area (the areas reach 4px past their slot).
-  Widget _iconColumn(List<(IconData, String, VoidCallback)> items) {
+  Widget _iconColumn(List<(IconData, String, int, VoidCallback)> items) {
     return SizedBox(
       width: 44,
       height: 36.0 * items.length,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (final (i, (icon, tooltip, onTap)) in items.indexed)
+          for (final (i, (icon, tooltip, badge, onTap)) in items.indexed)
             Positioned(
               top: 36.0 * i - 4,
               left: 0,
@@ -186,7 +196,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 constraints: const BoxConstraints.tightFor(width: 44, height: 44),
                 tooltip: tooltip,
                 onPressed: onTap,
-                icon: Icon(icon, color: SamrahColors.text, size: 24),
+                icon: Badge(
+                  isLabelVisible: badge > 0,
+                  label: Text(badge > 99 ? '99+' : '$badge'),
+                  backgroundColor: SamrahColors.suitRed,
+                  child: Icon(icon, color: SamrahColors.text, size: 24),
+                ),
               ),
             ),
         ],
@@ -221,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.playerName,
+                  _name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.cairo(color: SamrahColors.text, fontWeight: FontWeight.w700, fontSize: 16, height: 1.3),
@@ -235,17 +250,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 22,
                       alignment: Alignment.center,
                       decoration: const BoxDecoration(color: SamrahColors.accent, shape: BoxShape.circle),
-                      child: const Text('1', style: TextStyle(color: SamrahColors.onAccent, fontSize: 12, fontWeight: FontWeight.w800)),
+                      child: Text('${Account.instance.me?.level ?? 1}', style: const TextStyle(color: SamrahColors.onAccent, fontSize: 12, fontWeight: FontWeight.w800)),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(4),
-                        child: const LinearProgressIndicator(value: 0, minHeight: 6, backgroundColor: SamrahColors.scorebox, color: SamrahColors.accent),
+                        child: LinearProgressIndicator(value: Account.instance.me?.levelProgress ?? 0, minHeight: 6, backgroundColor: SamrahColors.scorebox, color: SamrahColors.accent),
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text('0%', style: TextStyle(color: SamrahColors.textMuted, fontSize: 11)),
+                    Text('${((Account.instance.me?.levelProgress ?? 0) * 100).round()}%', style: const TextStyle(color: SamrahColors.textMuted, fontSize: 11)),
                   ],
                 ),
               ],
@@ -253,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: 4),
           // settings live with the player
-          _headerIcon(Icons.settings_outlined, 'الإعدادات', () => _push(SettingsScreen(playerName: widget.playerName))),
+          _headerIcon(Icons.settings_outlined, 'الإعدادات', () => _push(const SettingsScreen())),
         ],
       ),
     );
@@ -404,16 +419,16 @@ class _HomeScreenState extends State<HomeScreen> {
           label: 'المسابقات',
           icon: Icons.military_tech_outlined,
           action: 'ادخل',
-          onSelected: () => _push(CompetitionsScreen(playerName: widget.playerName, variant: _variant)),
+          onSelected: () => _push(CompetitionsScreen(variant: _variant)),
         ),
-        RadialOption(label: 'الألعاب العامة', icon: Icons.public, action: 'تصفّح', onSelected: () => _soon('الألعاب العامة')),
+        RadialOption(label: 'الألعاب العامة', icon: Icons.public, action: 'تصفّح', onSelected: () => _push(TablesScreen(variant: _variant))),
         RadialOption(
           label: 'القوانين',
           icon: Icons.menu_book_outlined,
           action: 'اقرأ',
           onSelected: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RulesScreen(variant: _variant))),
         ),
-        RadialOption(label: 'الترتيب', icon: Icons.emoji_events_outlined, action: 'اعرض', onSelected: () => _soon('الترتيب')),
+        RadialOption(label: 'الترتيب', icon: Icons.emoji_events_outlined, action: 'اعرض', onSelected: () => _push(LeaderboardScreen(variant: _variant))),
       ],
     );
   }

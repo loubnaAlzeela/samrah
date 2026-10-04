@@ -1,9 +1,12 @@
-// The store's state: the two wallets («وحدات» / «نجوم»), what the player owns and
-// what is in use (card back, table). DEMO ONLY — held in memory and reset on every
-// launch; there are no accounts or payments yet (design/layout-v3.md §9-10). When
-// the server gets accounts, balances and ownership move there and this becomes a
-// thin cache of what it says.
+// The store's catalogue (how every card back and table looks) and the player's side of it: the two wallets
+// («وحدات» / «نجوم»), what the player owns and uses, the gold membership and the daily gift. The numbers and the
+// ownership live on the server (lib/services/account.dart); this class reads them from there and sends every
+// purchase there. Money packs are bought through the phone's store (lib/services/purchases.dart).
 import 'package:flutter/material.dart';
+
+import 'account.dart';
+import 'api.dart';
+import 'error_text.dart';
 
 /// A card-back design: the back colour, its rim and the mark in the middle.
 class CardBackStyle {
@@ -39,9 +42,11 @@ class TableStyle {
   final bool vipOnly;
 }
 
-/// A pack of currency bought with real money (prices are placeholders).
+/// A pack of currency bought with real money. [id] is the product id in Google Play and the App Store;
+/// [price] is shown until the store answers with the local price.
 class CoinPack {
-  const CoinPack(this.amount, this.price, {this.bonus = 0, this.tag});
+  const CoinPack(this.id, this.amount, this.price, {this.bonus = 0, this.tag});
+  final String id;
   final int amount;
   final String price;
   final int bonus;
@@ -49,7 +54,9 @@ class CoinPack {
 }
 
 class Store extends ChangeNotifier {
-  Store._();
+  Store._() {
+    Account.instance.addListener(notifyListeners);
+  }
   static final instance = Store._();
 
   static const cardBacks = [
@@ -95,99 +102,71 @@ class Store extends ChangeNotifier {
   ];
 
   static const unitPacks = [
-    CoinPack(500, '0.99\$'),
-    CoinPack(1200, '1.99\$', bonus: 100),
-    CoinPack(3500, '4.99\$', bonus: 500, tag: 'الأكثر شراءً'),
-    CoinPack(8000, '9.99\$', bonus: 1500),
-    CoinPack(18000, '19.99\$', bonus: 4000),
-    CoinPack(50000, '49.99\$', bonus: 15000, tag: 'أفضل قيمة'),
+    CoinPack('units_500', 500, '0.99\$'),
+    CoinPack('units_1200', 1200, '1.99\$', bonus: 100),
+    CoinPack('units_3500', 3500, '4.99\$', bonus: 500, tag: 'الأكثر شراءً'),
+    CoinPack('units_8000', 8000, '9.99\$', bonus: 1500),
+    CoinPack('units_18000', 18000, '19.99\$', bonus: 4000),
+    CoinPack('units_50000', 50000, '49.99\$', bonus: 15000, tag: 'أفضل قيمة'),
   ];
 
   static const starPacks = [
-    CoinPack(50, '0.99\$'),
-    CoinPack(120, '1.99\$', bonus: 10),
-    CoinPack(350, '4.99\$', bonus: 50, tag: 'الأكثر شراءً'),
-    CoinPack(800, '9.99\$', bonus: 150),
+    CoinPack('stars_50', 50, '0.99\$'),
+    CoinPack('stars_120', 120, '1.99\$', bonus: 10),
+    CoinPack('stars_350', 350, '4.99\$', bonus: 50, tag: 'الأكثر شراءً'),
+    CoinPack('stars_800', 800, '9.99\$', bonus: 150),
   ];
+
+  static List<CoinPack> get allPacks => [...unitPacks, ...starPacks];
 
   /// Gold membership: price in «نجوم», for 30 days.
   static const vipPrice = 300;
   static const dailyGift = 100;
 
-  // demo balances so the store and the competitions can be tried end to end
-  int units = 20000;
-  int stars = 50;
-  bool vip = false;
-  bool giftClaimed = false;
+  Me? get _me => Account.instance.me;
 
-  final Set<String> _owned = {'orange', 'cream'};
-  String _backId = 'orange';
-  String _tableId = 'cream';
-
-  CardBackStyle get cardBack => cardBacks.firstWhere((b) => b.id == _backId);
-  TableStyle get table => tables.firstWhere((t) => t.id == _tableId);
-
-  bool owns(String id) => _owned.contains(id);
-  bool inUse(String id) => id == _backId || id == _tableId;
-
-  /// Spends [price] «وحدات» on item [id]; false when the balance is short.
-  bool buy(String id, int price) {
-    if (owns(id) || units < price) return false;
-    units -= price;
-    _owned.add(id);
-    notifyListeners();
-    return true;
-  }
-
-  /// Takes [amount] «وحدات» (entry fees, competition prizes); false when short.
-  bool spend(int amount) {
-    if (amount < 0 || units < amount) return false;
-    units -= amount;
-    notifyListeners();
-    return true;
-  }
-
-  void earn(int amount) {
-    if (amount <= 0) return;
-    units += amount;
-    notifyListeners();
-  }
-
-  /// Stars won (challenge rewards).
-  void earnStars(int amount) {
-    if (amount <= 0) return;
-    stars += amount;
-    notifyListeners();
-  }
-
-  void useBack(String id) {
-    if (!owns(id)) return;
-    _backId = id;
-    notifyListeners();
-  }
-
-  void useTable(String id) {
-    if (!owns(id)) return;
-    _tableId = id;
-    notifyListeners();
-  }
-
-  bool buyVip() {
-    if (vip || stars < vipPrice) return false;
-    stars -= vipPrice;
-    vip = true;
-    _owned.addAll([for (final b in cardBacks) if (b.vipOnly) b.id, for (final t in tables) if (t.vipOnly) t.id]);
-    notifyListeners();
-    return true;
-  }
+  int get units => _me?.units ?? 0;
+  int get stars => _me?.stars ?? 0;
+  bool get vip => _me?.vip ?? false;
+  DateTime? get vipUntil => _me?.vipUntil;
+  bool get giftClaimed => _me?.giftTaken ?? false;
 
   /// Members get the gift twice over.
-  int get giftAmount => vip ? dailyGift * 2 : dailyGift;
+  int get giftAmount => _me?.giftAmount ?? (vip ? dailyGift * 2 : dailyGift);
 
-  void claimGift() {
-    if (giftClaimed) return;
-    units += giftAmount;
-    giftClaimed = true;
-    notifyListeners();
+  CardBackStyle get cardBack => cardBacks.firstWhere((b) => b.id == (_me?.backId ?? 'orange'), orElse: () => cardBacks.first);
+  TableStyle get table => tables.firstWhere((t) => t.id == (_me?.tableId ?? 'cream'), orElse: () => tables.first);
+
+  bool owns(String id) => (_me?.owned ?? const ['orange', 'cream']).contains(id);
+  bool inUse(String id) => id == cardBack.id || id == table.id;
+
+  /// Each action answers null when done, or the Arabic reason it was refused.
+  Future<String?> _do(String path, [Object? body]) async {
+    try {
+      await Account.instance.call(path, body);
+      return null;
+    } on ApiError catch (e) {
+      return errorText(e.code);
+    }
+  }
+
+  /// Spends the item's price in «وحدات».
+  Future<String?> buy(String id) => _do('/store/buy', {'id': id});
+
+  Future<String?> useBack(String id) => _do('/store/use', {'id': id});
+
+  Future<String?> useTable(String id) => _do('/store/use', {'id': id});
+
+  Future<String?> buyVip() => _do('/store/vip');
+
+  /// The daily gift: the amount added, or an error.
+  Future<(int?, String?)> claimGift() async {
+    try {
+      final r = await Api.instance.post('/store/gift') as Map;
+      Account.instance.apply(r['me']);
+      return ((r['added'] as num).toInt(), null);
+    } on ApiError catch (e) {
+      return (null, errorText(e.code));
+    }
   }
 }

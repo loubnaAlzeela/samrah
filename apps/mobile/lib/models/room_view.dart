@@ -51,6 +51,9 @@ class RoomView {
   /// countdown: remaining = turnDeadline - serverNow, then tick locally).
   final int serverNow;
 
+  /// the table's chat is on (the host's setting)
+  final bool chatOn;
+
   RoomView({
     required this.code,
     required this.variant,
@@ -68,6 +71,7 @@ class RoomView {
     required this.pending,
     required this.turnDeadline,
     required this.serverNow,
+    this.chatOn = true,
   });
 
   factory RoomView.fromJson(Map json) {
@@ -95,6 +99,7 @@ class RoomView {
       pending: json['pending'] == true,
       turnDeadline: asIntOrNull(json['turnDeadline']),
       serverNow: asIntOr(json['serverNow'], DateTime.now().millisecondsSinceEpoch),
+      chatOn: (json['settings'] as Map?)?['chat'] != false,
     );
   }
 }

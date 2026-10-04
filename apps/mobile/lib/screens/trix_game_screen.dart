@@ -11,6 +11,7 @@ import '../models/room_view.dart';
 import '../services/colyseus_client.dart';
 import '../services/game_audio.dart';
 import '../theme/samrah_theme.dart';
+import '../widgets/table_social.dart';
 import '../widgets/hand_view.dart';
 import '../widgets/playing_card_view.dart';
 import '../widgets/table_stage.dart';
@@ -206,8 +207,10 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
           Positioned(left: 64 - _avatarSize / 2, top: 708 - _avatarSize / 2, child: SeatAvatar(name: name(me), size: _avatarSize, turn: myTurn && acting && !meAuto, frac: frac)),
           Positioned(left: 64 - 45, top: 742, child: NamePill(text: name(me), width: 90, highlight: true)),
           if (g.kingdomOwner == me) const Positioned(left: 92, top: 680, child: CrownMark()),
-          Positioned(left: 111, top: 676, child: _iconBtn(Icons.chat_bubble_outline, 'الدردشة')),
-          Positioned(left: 111, top: 724, child: _iconBtn(Icons.card_giftcard, 'الهدايا')),
+          Positioned(left: 111, top: 676, child: _iconBtn(Icons.chat_bubble_outline, 'الدردشة', () => openTableChat(context, widget.conn, v))),
+          Positioned(left: 111, top: 724, child: _iconBtn(Icons.card_giftcard, 'الهدايا', () => openGiftSheet(context, widget.conn, v))),
+          // chat bubbles and gifts over everything at the table
+          Positioned.fill(key: const ValueKey('table-social'), child: TableSocialLayer(conn: widget.conn, mySeat: me, anchor: (s) => slotOf(s) == 0 ? const Offset(64, 708) : _avatarCenter[slotOf(s)]!)),
           Positioned(left: 168, top: 682, child: _infoRow(g.partners ? 'نتيجتنا' : 'النتيجة', '$myScore')),
           if (!isTrix && g.contract != null) Positioned(left: 168, top: 726, child: _infoRow('هذه الجولة', _signed(g.handPoints[me]))),
           if (isTrix && g.finishOrder.contains(me)) Positioned(left: 168, top: 726, child: _infoRow('ترتيبك', '${g.finishOrder.indexOf(me) + 1}')),
@@ -538,14 +541,14 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
 
   // --- my panel ----------------------------------------------------------------------
 
-  Widget _iconBtn(IconData icon, String tooltip) => SizedBox(
+  Widget _iconBtn(IconData icon, String tooltip, VoidCallback onTap) => SizedBox(
         width: 42,
         height: 42,
         child: IconButton(
           tooltip: tooltip,
           padding: EdgeInsets.zero,
           icon: Icon(icon, color: SamrahColors.text, size: 24),
-          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$tooltip — قريباً'), duration: const Duration(seconds: 2))),
+          onPressed: onTap,
         ),
       );
 

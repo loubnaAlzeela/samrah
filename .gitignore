@@ -13,3 +13,7 @@ __pycache__/
 
 # local server logs
 .server_log.txt
+
+# the game server's data file until the database exists (LAMMA_DATA_DIR)
+apps/server/data/
+.flutter_win_log.txt

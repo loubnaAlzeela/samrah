@@ -45,6 +45,7 @@ export class TestPlayer {
   }
 
   async leave() {
+    if (!this.room) return;
     await Promise.race([this.room.leave(true).catch(() => {}), sleep(300)]);
   }
 }

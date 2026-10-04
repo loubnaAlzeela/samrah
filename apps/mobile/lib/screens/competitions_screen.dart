@@ -1,6 +1,9 @@
-// المسابقات: the list, one competition's page (registration, knockout rounds,
-// the ten-minute review with complaints, the result), creating one (members
-// only) and the terms. DEMO — driven by lib/services/competitions.dart.
+// المسابقات: the list, one competition's page (registration, knockout rounds
+// played on real tables, the ten-minute review with complaints, the result),
+// creating one (gold members only) and the terms. The server runs every rule
+// (lib/services/competitions.dart); these screens poll it while open.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -8,6 +11,7 @@ import '../services/competitions.dart';
 import '../services/store.dart';
 import '../theme/samrah_theme.dart';
 import '../widgets/motion.dart';
+import 'room_screen.dart';
 import 'store_screen.dart';
 
 const _gold = Color(0xFFE8C77A);
@@ -53,8 +57,7 @@ Widget _units(int v, {double size = 14}) => Row(
 /// One tab per game: each game's competitions are kept apart, and a new one is
 /// created for the game whose tab is open.
 class CompetitionsScreen extends StatefulWidget {
-  const CompetitionsScreen({super.key, required this.playerName, this.variant});
-  final String playerName;
+  const CompetitionsScreen({super.key, this.variant});
 
   /// Opens on this game's tab (the game picked on the home screen).
   final String? variant;
@@ -71,22 +74,49 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> with SingleTick
 
   CompGame get _game => _games[_tab.index];
 
+  /// Each game's competitions, as last loaded (null = loading).
+  final Map<String, List<Competition>?> _lists = {};
+  String? _error;
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
-    _comps.wake(widget.playerName);
-    _tab.addListener(() => setState(() {}));
+    _tab.addListener(() {
+      setState(() {});
+      if (!_tab.indexIsChanging) _load();
+    });
+    _load();
+    // the countdowns tick every second; the list itself is reloaded every 10
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (t.tick % 10 == 0) _load();
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _tab.dispose();
     super.dispose();
   }
 
+  Future<void> _load() async {
+    final g = _game;
+    try {
+      final l = await _comps.list(g.variant);
+      if (mounted) setState(() {
+        _lists[g.variant] = l;
+        _error = null;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _error = 'تعذّر تحميل المسابقات');
+    }
+  }
+
   List<Competition> _shown(CompGame g) {
     final done = {CompPhase.finished, CompPhase.cancelled};
-    final ofGame = _comps.all.where((c) => c.game == g);
+    final ofGame = _lists[g.variant] ?? const <Competition>[];
     return switch (_filter) {
       1 => [
         for (final c in ofGame)
@@ -103,7 +133,10 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> with SingleTick
     };
   }
 
-  void _open(Competition c) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompetitionScreen(comp: c)));
+  Future<void> _open(Competition c) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompetitionScreen(compId: c.id)));
+    _load();
+  }
 
   Future<void> _create() async {
     if (!Store.instance.vip) {
@@ -178,6 +211,9 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> with SingleTick
   }
 
   Widget _list(CompGame g) {
+    if (_lists[g.variant] == null) {
+      return Center(child: _error == null ? const CircularProgressIndicator() : TextButton(onPressed: _load, child: Text('$_error — أعد المحاولة')));
+    }
     final list = _shown(g);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -202,9 +238,9 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> with SingleTick
           Padding(
             padding: const EdgeInsets.only(top: 60),
             child: Text(
-              'لا توجد مسابقات ${g.name} هنا بعد',
+              _filter == 0 ? 'لا توجد مسابقات ${g.name} مفتوحة الآن.\nالأعضاء الذهبيون ينظّمونها، وتظهر هنا ليشترك فيها الجميع.' : 'لا توجد مسابقات ${g.name} هنا بعد',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: SamrahColors.textMuted),
+              style: const TextStyle(color: SamrahColors.textMuted, height: 1.7),
             ),
           ),
         for (final (i, c) in list.indexed)
@@ -267,7 +303,7 @@ class _CompCard extends StatelessWidget {
                           style: GoogleFonts.cairo(color: SamrahColors.text, fontSize: 16, fontWeight: FontWeight.w700, height: 1.3),
                         ),
                         Text(
-                          '${c.game.name}${c.game.targets.isEmpty ? '' : ' · ${c.target} نقطة'} · المنظم: ${c.organiser}',
+                          '${c.game.name}${c.game.targets.isEmpty ? '' : ' · ${c.target} نقطة'} · المنظم: ${c.organiser} (${c.organiserRating} نقطة تقييم)',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(color: SamrahColors.textMuted, fontSize: 12),
@@ -402,19 +438,72 @@ class _SeatsBar extends StatelessWidget {
 
 // ── one competition ───────────────────────────────────────────────────────────
 
-class CompetitionScreen extends StatelessWidget {
-  const CompetitionScreen({super.key, required this.comp});
-  final Competition comp;
+class CompetitionScreen extends StatefulWidget {
+  const CompetitionScreen({super.key, required this.compId});
+  final String compId;
 
+  @override
+  State<CompetitionScreen> createState() => _CompetitionScreenState();
+}
+
+class _CompetitionScreenState extends State<CompetitionScreen> {
   Competitions get _comps => Competitions.instance;
+  Competition? _c;
+  String? _error;
+  bool _busy = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    // the clocks tick every second; the competition is reloaded every 3
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (t.tick % 3 == 0) _load();
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final c = await _comps.get(widget.compId);
+      if (mounted) setState(() => _c = c);
+    } catch (e) {
+      if (mounted && _c == null) setState(() => _error = 'تعذّر تحميل المسابقة');
+    }
+  }
+
+  /// Runs one action: the page shows the competition the server answers with, or the reason it refused.
+  Future<bool> _run(Future<(Competition?, String?)> action, {String? done}) async {
+    if (_busy) return false;
+    setState(() => _busy = true);
+    final (c, err) = await action;
+    if (!mounted) return false;
+    setState(() {
+      _busy = false;
+      if (c != null) _c = c;
+    });
+    if (err != null) _say(context, err);
+    if (err == null && done != null) _say(context, done);
+    return err == null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final comp = _c;
     return Scaffold(
-      appBar: AppBar(title: Text(comp.title, style: GoogleFonts.cairo(fontSize: 19))),
-      body: ListenableBuilder(
-        listenable: _comps,
-        builder: (context, _) {
+      appBar: AppBar(title: Text(comp?.title ?? 'المسابقة', style: GoogleFonts.cairo(fontSize: 19))),
+      body: Builder(
+        builder: (context) {
+          if (comp == null) {
+            return Center(child: _error == null ? const CircularProgressIndicator() : TextButton(onPressed: _load, child: Text('$_error — أعد المحاولة')));
+          }
           final c = comp;
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -423,14 +512,14 @@ class CompetitionScreen extends StatelessWidget {
               const SizedBox(height: 14),
               ...switch (c.phase) {
                 CompPhase.registering => _registering(context, c),
-                CompPhase.running => [_bracket(c)],
+                CompPhase.running => [if (c.myMatchRoom != null) ...[_myMatch(context, c), const SizedBox(height: 14)], _bracket(c)],
                 CompPhase.review => [..._review(context, c), const SizedBox(height: 14), _bracket(c)],
                 CompPhase.frozen => [..._frozen(context, c), const SizedBox(height: 14), _bracket(c)],
                 CompPhase.finished => [_result(c), const SizedBox(height: 14), _bracket(c)],
                 CompPhase.cancelled => [_cancelled(c)],
               },
               const SizedBox(height: 14),
-              _entrants(c),
+              _entrants(context, c),
             ],
           );
         },
@@ -490,13 +579,14 @@ class CompetitionScreen extends StatelessWidget {
           const SizedBox(height: 12),
           _SeatsBar(comp: c),
           const SizedBox(height: 8),
-          _row('المنظم', _text(c.mine ? '${c.organiser} (أنت)' : c.organiser)),
+          _row('المنظم', _text(c.mine ? '${c.organiser} (أنت)' : '${c.organiser} · تقييمه ${c.organiserRating}')),
           _row('الجائزة', _units(c.prize)),
           if (c.game.partnership) _row('لكل لاعب في الفريق الفائز', _units(each)),
           _row('رسوم الاشتراك', c.fee == 0 ? _text('مجاني') : _units(c.fee)),
           if (c.game.targets.isNotEmpty) _row('النتيجة النهائية للمباراة', _text('${c.target} نقطة')),
           _row('النظام', _text(c.game.partnership ? 'خروج المغلوب' : 'طاولات من 4، يتأهل الأول والثاني')),
           if (c.phase == CompPhase.registering) _row('يُغلق التسجيل بعد', _text(_clock(c.deadline.difference(DateTime.now())))),
+          if (c.phase == CompPhase.registering) _row('قبول الطلبات', _text(c.autoAccept ? 'تلقائي' : 'بموافقة المنظم')),
         ],
       ),
     );
@@ -513,7 +603,7 @@ class CompetitionScreen extends StatelessWidget {
             children: [
               _title('لوحة المنظم'),
               ElevatedButton(
-                onPressed: c.canStart ? () => _comps.startNow(c) : null,
+                onPressed: c.canStart && !_busy ? () => _run(_comps.startNow(c)) : null,
                 child: Text(c.canStart ? 'ابدأ المسابقة الآن' : 'تحتاج ${c.minToStart - c.entrants.length} ${c.game.partnership ? 'فريقاً' : 'لاعباً'} آخر للبدء'),
               ),
               const SizedBox(height: 8),
@@ -536,7 +626,7 @@ class CompetitionScreen extends StatelessWidget {
               Row(
                 children: [
                   Expanded(child: _title('طلبات الانضمام (${c.requests.length})')),
-                  if (c.requests.isNotEmpty && !c.full) TextButton(onPressed: () => _comps.acceptAll(c), child: const Text('اقبل الكل')),
+                  if (c.requests.isNotEmpty && !c.full) TextButton(onPressed: () => _run(_comps.acceptAll(c)), child: const Text('اقبل الكل')),
                 ],
               ),
               if (c.requests.isEmpty) const Text('لا توجد طلبات الآن', style: TextStyle(color: SamrahColors.textMuted, fontSize: 13)),
@@ -545,15 +635,15 @@ class CompetitionScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
                     children: [
-                      Expanded(child: _text(r)),
+                      Expanded(child: _text(r.name)),
                       IconButton(
                         tooltip: 'ارفض',
-                        onPressed: () => _comps.reject(c, r),
+                        onPressed: () => _run(_comps.answer(c, r.id, false)),
                         icon: const Icon(Icons.close_rounded, color: SamrahColors.suitRed),
                       ),
                       IconButton(
                         tooltip: 'اقبل',
-                        onPressed: c.full ? null : () => _comps.accept(c, r),
+                        onPressed: c.full ? null : () => _run(_comps.answer(c, r.id, true)),
                         icon: const Icon(Icons.check_rounded, color: SamrahColors.statusOpen),
                       ),
                     ],
@@ -588,7 +678,7 @@ class CompetitionScreen extends StatelessWidget {
                 style: const TextStyle(color: SamrahColors.textMuted, fontSize: 12),
               ),
               const SizedBox(height: 10),
-              OutlinedButton(onPressed: () => _comps.leave(c), child: const Text('انسحب واسترجع الرسوم')),
+              OutlinedButton(onPressed: () => _run(_comps.leave(c), done: 'انسحبت وأُعيدت الرسوم'), child: const Text('انسحب واسترجع الرسوم')),
             ],
           ),
         ),
@@ -611,7 +701,8 @@ class CompetitionScreen extends StatelessWidget {
           content: TextField(
             controller: ctrl,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'اسم الشريك'),
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'رقم الشريك', helperText: 'رقم اللاعب يظهر في صفحته وفي إعداداته'),
           ),
           actions: [
             TextButton(
@@ -628,8 +719,7 @@ class CompetitionScreen extends StatelessWidget {
       );
       if (partner == null) return;
     }
-    final err = _comps.join(c, partner: partner);
-    if (context.mounted) _say(context, err ?? (c.mine ? 'أخذت مقعداً في مسابقتك' : 'أُرسل طلبك إلى المنظم'));
+    await _run(_comps.join(c, partner: partner), done: c.mine || c.autoAccept ? 'سُجّلت في المسابقة' : 'أُرسل طلبك إلى المنظم');
   }
 
   Future<void> _confirmCancel(BuildContext context, Competition c) async {
@@ -655,7 +745,7 @@ class CompetitionScreen extends StatelessWidget {
         ],
       ),
     );
-    if (ok == true) _comps.cancel(c);
+    if (ok == true) await _run(_comps.cancel(c));
   }
 
   static String _roundName(int size, CompGame g) {
@@ -784,7 +874,7 @@ class CompetitionScreen extends StatelessWidget {
             Text('ضغط «لا توجد لدي أي شكاوى»: $cleared من ${c.entrants.length}', style: const TextStyle(color: SamrahColors.text, fontSize: 12)),
             if (iAmIn) ...[
               const SizedBox(height: 12),
-              ElevatedButton(onPressed: iCleared ? null : () => _comps.noComplaints(c), child: Text(iCleared ? 'أكّدت أنه لا شكوى لديك' : 'لا توجد لدي أي شكاوى')),
+              ElevatedButton(onPressed: iCleared ? null : () => _run(_comps.noComplaints(c)), child: Text(iCleared ? 'أكّدت أنه لا شكوى لديك' : 'لا توجد لدي أي شكاوى')),
               const SizedBox(height: 8),
               OutlinedButton.icon(onPressed: () => _complain(context, c), icon: const Icon(Icons.flag_outlined, size: 18), label: const Text('قدّم شكوى')),
             ],
@@ -827,13 +917,16 @@ class CompetitionScreen extends StatelessWidget {
   );
 
   Future<void> _complain(BuildContext context, Competition c) async {
-    final err = await showModalBottomSheet<String?>(
+    final done = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _ComplaintSheet(comp: c),
     );
-    if (err != null && context.mounted) _say(context, err);
+    if (done != null && context.mounted) {
+      _say(context, done);
+      _load();
+    }
   }
 
   List<Widget> _frozen(BuildContext context, Competition c) => [
@@ -851,9 +944,14 @@ class CompetitionScreen extends StatelessWidget {
           ),
           if (c.mine) ...[
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: () => _comps.confirmResult(c), child: const Text('اعتمد النتيجة ووزّع الجائزة')),
+            ElevatedButton(onPressed: () => _run(_comps.settle(c, 'confirm')), child: const Text('اعتمد النتيجة ووزّع الجائزة')),
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: () => _comps.refundAll(c), child: const Text('ألغِ النتيجة وأعِد رسوم الاشتراك')),
+            OutlinedButton(onPressed: () => _pickWinner(context, c), child: const Text('عيّن فائزاً آخر')),
+            const SizedBox(height: 8),
+            OutlinedButton(onPressed: () => _run(_comps.settle(c, 'refund')), child: const Text('ألغِ النتيجة وأعِد رسوم الاشتراك')),
+          ] else if (c.joined) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(onPressed: () => _appeal(context, c), icon: const Icon(Icons.support_agent, size: 18), label: const Text('اعترض لدى فريق سمرة')),
           ],
         ],
       ),
@@ -894,9 +992,84 @@ class CompetitionScreen extends StatelessWidget {
               style: const TextStyle(color: SamrahColors.textMuted, fontSize: 12),
             ),
           ],
+          if (c.joined && !c.mine) ...[
+            const SizedBox(height: 8),
+            TextButton.icon(onPressed: () => _appeal(context, c), icon: const Icon(Icons.support_agent, size: 18), label: const Text('اعترض على قرار المنظم')),
+          ],
         ],
       ),
     );
+  }
+
+  /// The match the player has to play now: its table opens with one tap.
+  Widget _myMatch(BuildContext context, Competition c) => _box(
+        border: SamrahColors.accent,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          _title('مباراتك جاهزة'),
+          const Text('ادخل الطاولة الآن. إن تأخرت أكثر من 3 دقائق يلعب الكمبيوتر مكانك وتخرج من المسابقة.', style: TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RoomScreen(joinCode: c.myMatchRoom!, variant: c.game.variant))),
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text('ادخل المباراة'),
+          ),
+        ]),
+      );
+
+  Future<void> _pickWinner(BuildContext context, Competition c) async {
+    final id = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        backgroundColor: SamrahColors.surface,
+        title: const Text('من الفائز؟'),
+        children: [for (final e in c.entries) SimpleDialogOption(onPressed: () => Navigator.pop(ctx, e.id), child: Text(e.name))],
+      ),
+    );
+    if (id != null) await _run(_comps.settle(c, 'winner', winner: id));
+  }
+
+  Future<void> _appeal(BuildContext context, Competition c) async {
+    final ctrl = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: SamrahColors.surface,
+        title: const Text('اعتراض على قرار المنظم'),
+        content: TextField(controller: ctrl, maxLines: 4, maxLength: 600, decoration: const InputDecoration(labelText: 'اشرح سبب اعتراضك')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('أرسل')),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (text == null || text.isEmpty) return;
+    await _run(_comps.appeal(c, text), done: 'وصل اعتراضك إلى فريق سمرة، وسيعيّن مراقباً ينظر فيه');
+  }
+
+  Future<void> _kick(BuildContext context, Competition c, CompEntry e) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        backgroundColor: SamrahColors.surface,
+        title: Text(e.name),
+        children: [
+          SimpleDialogOption(onPressed: () => Navigator.pop(ctx, 'kick'), child: const Text('أخرجه من المسابقة')),
+          SimpleDialogOption(onPressed: () => Navigator.pop(ctx, 'bar'), child: const Text('أخرجه وامنعه من مسابقاتي')),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 8, 24, 0),
+            child: Text('تبقى رسومه في المسابقة. وإن رأى فريق سمرة أن الإخراج بلا مبرر تُخصم الرسوم منك وتُعاد إليه، وتُمنع من المسابقات.', style: TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+    if (choice == null) return;
+    final ok = await _run(_comps.kick(c, e.id));
+    if (ok && choice == 'bar' && _c != null) {
+      for (final uid in e.userIds) {
+        await _run(_comps.bar(_c!, uid));
+      }
+    }
   }
 
   Widget _cancelled(Competition c) => _box(
@@ -914,7 +1087,7 @@ class CompetitionScreen extends StatelessWidget {
     ),
   );
 
-  Widget _entrants(Competition c) => _box(
+  Widget _entrants(BuildContext context, Competition c) => _box(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -924,11 +1097,14 @@ class CompetitionScreen extends StatelessWidget {
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (final e in c.entrants)
-              Chip(
-                label: Text(e),
-                side: BorderSide(color: e == c.myEntry ? SamrahColors.accent : SamrahColors.line),
-                avatar: c.phase == CompPhase.review && c.clear.contains(e) ? const Icon(Icons.check_rounded, size: 16, color: SamrahColors.statusOpen) : null,
+            for (final e in c.entries)
+              InputChip(
+                label: Text(e.name),
+                side: BorderSide(color: e.name == c.myEntry ? SamrahColors.accent : SamrahColors.line),
+                avatar: c.phase == CompPhase.review && c.clear.contains(e.name) ? const Icon(Icons.check_rounded, size: 16, color: SamrahColors.statusOpen) : null,
+                // the organiser may remove an entry before the start
+                onDeleted: c.mine && c.phase == CompPhase.registering && e.name != c.myEntry ? () => _kick(context, c, e) : null,
+                deleteIcon: const Icon(Icons.more_horiz, size: 18),
               ),
           ],
         ),
@@ -946,8 +1122,10 @@ class _ComplaintSheet extends StatefulWidget {
 }
 
 class _ComplaintSheetState extends State<_ComplaintSheet> {
-  late final _others = [widget.comp.organiser, ...widget.comp.entrants.where((e) => e != widget.comp.myEntry)];
-  late String _against = _others.first;
+  /// (id, name): the organiser, then every other entry.
+  late final _others = [('organiser', widget.comp.organiser), for (final e in widget.comp.entries) if (e.id != widget.comp.myEntryId) (e.id, e.name)];
+  late String _against = _others.first.$1;
+  bool _busy = false;
   String _type = Competitions.complaintTypes.first;
   final _text = TextEditingController();
   String? _error;
@@ -997,7 +1175,7 @@ class _ComplaintSheetState extends State<_ComplaintSheet> {
                 initialValue: _against,
                 decoration: const InputDecoration(labelText: 'المشتكى عليه'),
                 dropdownColor: SamrahColors.surface2,
-                items: [for (final o in _others) DropdownMenuItem(value: o, child: Text(o == widget.comp.organiser ? '$o (المنظم)' : o))],
+                items: [for (final (id, name) in _others) DropdownMenuItem(value: id, child: Text(id == 'organiser' ? '$name (المنظم)' : name))],
                 onChanged: (v) => setState(() => _against = v!),
               ),
               const SizedBox(height: 12),
@@ -1025,14 +1203,21 @@ class _ComplaintSheetState extends State<_ComplaintSheet> {
               ),
               const SizedBox(height: 14),
               ElevatedButton(
-                onPressed: () {
-                  final err = Competitions.instance.complain(widget.comp, against: _against, type: _type, text: _text.text);
-                  if (err != null) {
-                    setState(() => _error = err);
-                  } else {
-                    Navigator.pop(context, 'قُدّمت الشكوى، ويمكنك سحبها قبل انتهاء الوقت بالضغط على «لا توجد لدي أي شكاوى»');
-                  }
-                },
+                onPressed: _busy
+                    ? null
+                    : () async {
+                        setState(() => _busy = true);
+                        final (_, err) = await Competitions.instance.complain(widget.comp, against: _against, type: _type, text: _text.text);
+                        if (!context.mounted) return;
+                        if (err != null) {
+                          setState(() {
+                            _busy = false;
+                            _error = err;
+                          });
+                        } else {
+                          Navigator.pop(context, 'قُدّمت الشكوى، ويمكنك سحبها قبل انتهاء الوقت بالضغط على «لا توجد لدي أي شكاوى»');
+                        }
+                      },
                 child: const Text('أرسل الشكوى'),
               ),
             ],
@@ -1061,10 +1246,23 @@ class _CreateCompetitionSheetState extends State<CreateCompetitionSheet> {
   late int _seats = widget.game.seatOptions.contains(8) ? 8 : widget.game.seatOptions.first;
   int _fee = 100;
   int _prize = 2000;
+  int _minutes = 30;
+  bool _autoAccept = true;
+  bool _agree = false;
+  bool _busy = false;
   late int _target = widget.game.targets.contains(41) || widget.game.targets.isEmpty ? 41 : widget.game.targets.first;
 
-  static const _fees = [0, 100, 250, 500, 1000];
-  static const _prizes = [500, 1000, 2000, 5000, 10000];
+  static const _fees = CompRules.fees;
+  static const _prizes = CompRules.prizes;
+  static const _times = CompRules.registrationMinutes;
+
+  static String _timeLabel(int m) => switch (m) {
+        10 => '10 د',
+        30 => '30 د',
+        60 => 'ساعة',
+        180 => '3 ساعات',
+        _ => 'يوم',
+      };
 
   @override
   void dispose() {
@@ -1120,6 +1318,16 @@ class _CreateCompetitionSheetState extends State<CreateCompetitionSheet> {
               _seg([for (final t in _game.targets) '$t'], _game.targets.indexOf(_target), (i) => setState(() => _target = _game.targets[i])),
             ] else if (_game.targets.length == 1)
               _label('النتيجة النهائية: ${_game.targets.single} دائماً'),
+            _label('مدة التسجيل'),
+            _seg([for (final t in _times) _timeLabel(t)], _times.indexOf(_minutes), (i) => setState(() => _minutes = _times[i])),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _autoAccept,
+              activeThumbColor: SamrahColors.selectedBg,
+              onChanged: (v) => setState(() => _autoAccept = v),
+              title: const Text('قبول الطلبات تلقائياً', style: TextStyle(color: SamrahColors.text)),
+              subtitle: Text(_autoAccept ? 'من يشترك يأخذ مقعداً مباشرة' : 'تقبل كل طلب بنفسك', style: const TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
+            ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -1136,16 +1344,41 @@ class _CreateCompetitionSheetState extends State<CreateCompetitionSheet> {
                   _note('تحصل على 90% من رسوم الاشتراك عند انتهاء المسابقة: حتى ${CompRules.organiserShare(_fee, _seats)} وحدة إن امتلأت المقاعد.'),
                   if (_game.partnership) _note('يحصل كل لاعب في الفريق الفائز على نصف الجائزة: ${_prize ~/ 2} وحدة.'),
                   if (!_game.partnership) _note('اللعب على طاولات من 4، يتأهل الأول والثاني من كل طاولة، ويأخذ الفائز في الطاولة النهائية الجائزة كاملة.'),
-                  _note('للتسجيل 5 دقائق في هذه النسخة التجريبية.'),
+                  _note('يبقى التسجيل مفتوحاً ${_timeLabel(_minutes)}، وتبدأ قبل ذلك إن امتلأت المقاعد أو بدأتها أنت بعد اكتمال 75%.'),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _agree,
+              onChanged: (v) => setState(() => _agree = v ?? false),
+              title: Wrap(children: [
+                const Text('أوافق على ', style: TextStyle(color: SamrahColors.text, fontSize: 13)),
+                InkWell(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CompetitionTermsScreen())),
+                  child: const Text('شروط المسابقات', style: TextStyle(color: SamrahColors.accent, fontSize: 13, fontWeight: FontWeight.w700, decoration: TextDecoration.underline)),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 8),
             ElevatedButton(
-              onPressed: balance < cost
+              onPressed: balance < cost || !_agree || _busy
                   ? null
-                  : () {
-                      final (c, err) = Competitions.instance.create(title: _title.text, game: _game, seats: _seats, fee: _fee, prize: _prize, target: _game.targets.isEmpty ? 0 : _target);
+                  : () async {
+                      setState(() => _busy = true);
+                      final (c, err) = await Competitions.instance.create(
+                        title: _title.text,
+                        game: _game,
+                        seats: _seats,
+                        fee: _fee,
+                        prize: _prize,
+                        target: _game.targets.isEmpty ? 0 : _target,
+                        minutes: _minutes,
+                        autoAccept: _autoAccept,
+                      );
+                      if (!context.mounted) return;
+                      setState(() => _busy = false);
                       if (err != null) {
                         _say(context, err);
                       } else {
@@ -1237,6 +1470,7 @@ class CompetitionTermsScreen extends StatelessWidget {
       'من ينظّم',
       [
         'إنشاء المسابقات متاح للمشتركين في العضوية الذهبية فقط، والاشتراك فيها متاح للجميع.',
+        'لا يفتح المنظم أكثر من 3 مسابقات في الوقت نفسه، ويختار مدة التسجيل: من 10 دقائق إلى يوم كامل.',
         'المنظم مسؤول عن سير المسابقة بنزاهة ومن غير غش.',
         'يقبل المنظم طلبات الانضمام أو يرفضها، ويراجع الشكاوى ويتخذ ما يلزم، ويحدد قيمة الجائزة.',
         'لا يرى المنظم ولا المراقب أي بيانات خاصة عن اللاعبين، كرصيدهم أو بريدهم الإلكتروني.',
@@ -1247,6 +1481,15 @@ class CompetitionTermsScreen extends StatelessWidget {
       [
         'تبدأ المسابقة إذا امتلأ 75% من مقاعدها على الأقل: مقعدان من 2، و3 من 4، و6 من 8، و12 من 16، و24 من 32.',
         'إن لم يكتمل هذا العدد تُلغى المسابقة ويُخصم من المنظم 300 وحدة عن كل مقعد (600 لمسابقة المقعدين وحتى 9600 لمسابقة الـ32)، ويُعاد كل ما سوى ذلك إلى المنظم واللاعبين.',
+      ],
+    ),
+    (
+      'المباريات',
+      [
+        'في ألعاب الشراكة يسجّل اللاعب فريقه برقم شريكه، ويجلس الشريكان متقابلين، وتكون المباريات فريقاً ضد فريق ويتأهل الفائز.',
+        'في غيرها تكون الطاولات من 4 لاعبين، ويتأهل الأول والثاني من كل طاولة، والفائز في الطاولة النهائية يأخذ الجائزة.',
+        'حين تجهز مباراتك يصلك تنبيه، وأمامك 3 دقائق لدخول الطاولة. من لا يحضر يلعب الكمبيوتر مكانه ويخرج من المسابقة.',
+        'من ينقطع أثناء المباراة يلعب الكمبيوتر عنه حتى يعود.',
       ],
     ),
     (

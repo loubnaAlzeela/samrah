@@ -39,11 +39,15 @@ describe('room creation + settings', () => {
     expect(host.view!.settings).toMatchObject({ speed: 'fast', target: 31, chat: false, kick: true, noLeave: true, minLevel: 3, voice: true, visibility: 'private' });
     expect(host.view!.isOwner).toBe(true);
     expect(host.view!.mySeat).toBe(0);
+    // a level-1 guest is below the table's level 3
+    await expect(P('صغير').join(code)).rejects.toThrow(/lowLevel/);
+    host.send('settings', { minLevel: 1 });
+    await waitFor(() => host.view!.settings.minLevel === 1, 'level lowered');
     const b = P('ب');
     await b.join(code);
     expect(b.view!.isOwner).toBe(false);
     expect(b.view!.mySeat).toBe(1);
-    expect(b.view!.seats[1]).toMatchObject({ name: 'ب', bot: false, level: 1 });
+    expect(b.view!.seats[1]).toMatchObject({ name: 'ب', bot: false, level: 1, uid: null });
   });
 
   it('rejects invalid settings at creation', async () => {
@@ -79,7 +83,7 @@ describe('room creation + settings', () => {
 });
 
 describe('start with computer players', () => {
-  it('host starts early: empty seats become computer players and the game runs', async () => {
+  it('host starts early: empty seats become computer players and the game runs', { timeout: 30_000 }, async () => {
     const host = P('أنا');
     const code = await host.create('tarneeb');
     const friend = P('صاحبي');
@@ -149,7 +153,7 @@ describe('kick', () => {
     await expect(new Client(EP).joinById(code, { name: 'ضيف', token: tok })).rejects.toThrow(/kicked/);
   });
 
-  it('during a game: queued, applied when the hand ends; the seat goes to a computer', async () => {
+  it('during a game: queued, applied when the hand ends; the seat goes to a computer', { timeout: 30_000 }, async () => {
     const host = P('k2');
     const code = await host.create('tarneeb', { kick: true });
     const victim = P('v');

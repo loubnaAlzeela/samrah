@@ -1,12 +1,13 @@
 // المتجر (`s-store`) — design/layout-v3.md §9, grown into four sections:
 // currency packs (segmented وحدات / نجوم, two-column grid), card backs, tables
 // and gold membership. Backs and tables are bought with «وحدات» and used at once
-// in every game; membership costs «نجوم». DEMO: balances live in memory
-// (lib/services/store.dart) and real-money packs only explain that payment is
-// not switched on yet.
+// in every game; membership costs «نجوم». Balances and ownership are the
+// server's (lib/services/store.dart); currency packs are paid through Google
+// Play / the App Store (lib/services/purchases.dart).
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../services/purchases.dart';
 import '../services/store.dart';
 import '../theme/samrah_theme.dart';
 import '../widgets/motion.dart';
@@ -25,12 +26,42 @@ class StoreScreen extends StatefulWidget {
 
 class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStateMixin {
   final _store = Store.instance;
+  final _pay = Purchases.instance;
   late final _tab = TabController(length: _tabs.length, vsync: this, initialIndex: widget.initialTab);
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pay.addListener(_onPay);
+    _pay.start();
+  }
+
+  void _onPay() {
+    final m = _pay.message;
+    if (m != null && mounted) {
+      _pay.message = null;
+      _say(m);
+    }
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
+    _pay.removeListener(_onPay);
     _tab.dispose();
     super.dispose();
+  }
+
+  /// Runs one server action with the buttons held; shows the error if it was refused.
+  Future<bool> _run(Future<String?> Function() action) async {
+    if (_busy) return false;
+    setState(() => _busy = true);
+    final err = await action();
+    if (!mounted) return false;
+    setState(() => _busy = false);
+    if (err != null) _say(err);
+    return err == null;
   }
   bool _stars = false; // العملات: which currency's packs are showing
 
@@ -146,7 +177,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
         ),
         const SizedBox(height: 14),
         const Text(
-          'نسخة تجريبية: الدفع غير مفعّل بعد، والأرصدة تعود لقيمتها عند إعادة تشغيل التطبيق.',
+          'الدفع عبر Google Play أو App Store، وتُضاف العملات إلى محفظتك فور تأكيد الشراء. العملات للعب داخل سمرة فقط ولا تُستبدل بمال.',
           textAlign: TextAlign.center,
           style: TextStyle(color: SamrahColors.textMuted, fontSize: 12),
         ),
@@ -204,12 +235,14 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
             width: 92,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(minimumSize: const Size(92, 44), padding: EdgeInsets.zero),
-              onPressed: claimed
+              onPressed: claimed || _busy
                   ? null
-                  : () {
-                      final amount = _store.giftAmount;
-                      _store.claimGift();
-                      _say('أُضيفت $amount وحدة إلى رصيدك');
+                  : () async {
+                      setState(() => _busy = true);
+                      final (amount, err) = await _store.claimGift();
+                      if (!mounted) return;
+                      setState(() => _busy = false);
+                      _say(err ?? 'أُضيفت $amount وحدة إلى رصيدك');
                     },
               child: Text(claimed ? 'استُلمت' : 'استلم'),
             ),
@@ -253,8 +286,10 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
                   width: double.infinity,
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40), padding: EdgeInsets.zero),
-                    onPressed: () => _say('الدفع غير مفعّل بعد — هذه نسخة تجريبية'),
-                    child: Directionality(textDirection: TextDirection.ltr, child: Text(p.price, style: const TextStyle(fontWeight: FontWeight.w700))),
+                    onPressed: _pay.busy != null ? null : () => _pay.buy(p),
+                    child: _pay.busy == p.id
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : Directionality(textDirection: TextDirection.ltr, child: Text(_pay.priceOf(p), style: const TextStyle(fontWeight: FontWeight.w700))),
                   ),
                 ),
               ],
@@ -351,7 +386,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
     required bool vipOnly,
     required bool inUse,
     required Widget preview,
-    required VoidCallback onUse,
+    required Future<String?> Function() onUse,
   }) {
     final owned = _store.owns(id);
     final Widget action;
@@ -372,9 +407,8 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
     } else if (owned) {
       action = OutlinedButton(
         style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
-        onPressed: () {
-          onUse();
-          _say('صار «$name» هو المستخدم في كل الألعاب');
+        onPressed: () async {
+          if (await _run(onUse)) _say('صار «$name» هو المستخدم في كل الألعاب');
         },
         child: const Text('استخدم', style: TextStyle(fontWeight: FontWeight.w700)),
       );
@@ -436,7 +470,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
     );
   }
 
-  Future<void> _confirmBuy({required String id, required String name, required int price, required VoidCallback onUse}) async {
+  Future<void> _confirmBuy({required String id, required String name, required int price, required Future<String?> Function() onUse}) async {
     if (_store.units < price) {
       _say('رصيد الوحدات لا يكفي — تحتاج ${price - _store.units} وحدة أخرى');
       return;
@@ -458,10 +492,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
       ),
     );
     if (ok != true || !mounted) return;
-    if (_store.buy(id, price)) {
-      onUse();
-      _say('اشتريت «$name» وصار مستخدماً في كل الألعاب');
-    }
+    if (await _run(() => _store.buy(id)) && await _run(onUse)) _say('اشتريت «$name» وصار مستخدماً في كل الألعاب');
   }
 
   // ── العضوية ─────────────────────────────────────────────────────────────────
@@ -489,7 +520,10 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
               const Icon(Icons.workspace_premium_rounded, size: 56, color: _gold),
               const SizedBox(height: 6),
               Text('العضوية الذهبية', style: GoogleFonts.cairo(color: _gold, fontSize: 24, fontWeight: FontWeight.w700)),
-              const Text('30 يوماً', style: TextStyle(color: SamrahColors.textMuted, fontSize: 13)),
+              Text(
+                vip && _store.vipUntil != null ? 'حتى ${_store.vipUntil!.year}/${_store.vipUntil!.month}/${_store.vipUntil!.day} · التجديد يضيف 30 يوماً' : '30 يوماً',
+                style: const TextStyle(color: SamrahColors.textMuted, fontSize: 13),
+              ),
               const SizedBox(height: 18),
               for (final (icon, text) in perks)
                 Padding(
@@ -508,20 +542,21 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
                 children: [_backFan(Store.cardBacks.last), const SizedBox(width: 24), SizedBox(width: 120, height: 80, child: TableFelt(style: Store.tables.last, radius: 18))],
               ),
               const SizedBox(height: 20),
-              if (vip)
+              if (vip) ...[
                 Container(
                   height: 54,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: _gold)),
                   child: const Text('أنت عضو ذهبي', style: TextStyle(color: _gold, fontSize: 17, fontWeight: FontWeight.w700)),
-                )
-              else
+                ),
+                const SizedBox(height: 10),
+              ],
                 ElevatedButton(
-                  onPressed: _joinVip,
+                  onPressed: _busy ? null : _joinVip,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Flexible(child: Text('اشترك بـ ', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      Flexible(child: Text(vip ? 'جدّد بـ ' : 'اشترك بـ ', maxLines: 1, overflow: TextOverflow.ellipsis)),
                       const StarIcon(size: 18, color: SamrahColors.onAccent),
                       const SizedBox(width: 4),
                       Text('${Store.vipPrice}'),
@@ -535,14 +570,15 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
     );
   }
 
-  void _joinVip() {
-    if (_store.buyVip()) {
-      _say('مبروك! صرت عضواً ذهبياً');
-    } else {
+  Future<void> _joinVip() async {
+    if (_store.stars < Store.vipPrice) {
       _say('رصيد النجوم لا يكفي — تحتاج ${Store.vipPrice - _store.stars} نجمة أخرى');
       setState(() => _stars = true);
       _tab.animateTo(0);
+      return;
     }
+    final wasVip = _store.vip;
+    if (await _run(_store.buyVip)) _say(wasVip ? 'جُدّدت عضويتك 30 يوماً' : 'مبروك! صرت عضواً ذهبياً');
   }
 }
 

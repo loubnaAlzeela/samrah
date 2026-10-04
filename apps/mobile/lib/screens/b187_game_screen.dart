@@ -10,6 +10,7 @@ import '../models/room_view.dart';
 import '../services/colyseus_client.dart';
 import '../services/game_audio.dart';
 import '../theme/samrah_theme.dart';
+import '../widgets/table_social.dart';
 import '../widgets/hand_view.dart';
 import '../widgets/playing_card_view.dart';
 import '../widgets/suit_icon.dart';
@@ -204,8 +205,10 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
           Positioned(left: 64 - 45, top: 742, child: NamePill(text: name(me), width: 90, highlight: true)),
           if (g.buyer == me) const Positioned(left: 88, top: 676, child: _Tag('المشتري')),
           if (g.dealer == me) const Positioned(left: 14, top: 676, child: DealerTag()), // left of my avatar, clear of the chat icon
-          Positioned(left: 111, top: 676, child: _iconBtn(Icons.chat_bubble_outline, 'الدردشة')),
-          Positioned(left: 111, top: 724, child: _iconBtn(Icons.card_giftcard, 'الهدايا')),
+          Positioned(left: 111, top: 676, child: _iconBtn(Icons.chat_bubble_outline, 'الدردشة', () => openTableChat(context, widget.conn, v))),
+          Positioned(left: 111, top: 724, child: _iconBtn(Icons.card_giftcard, 'الهدايا', () => openGiftSheet(context, widget.conn, v))),
+          // chat bubbles and gifts over everything at the table
+          Positioned.fill(key: const ValueKey('table-social'), child: TableSocialLayer(conn: widget.conn, mySeat: me, anchor: (s) => slotOf(s) == 0 ? const Offset(64, 708) : _avatarCenters(n)[slotOf(s)]!)),
           Positioned(left: 168, top: 682, child: _infoRow('النتيجة', '${g.scores[me]}')),
           Positioned(left: 168, top: 726, child: _infoRow('نقاط الجولة', '${g.collected.isEmpty ? 0 : g.collected[me]}')),
 
@@ -630,14 +633,14 @@ class _B187GameScreenState extends State<B187GameScreen> with TurnClock {
 
   // --- my panel ----------------------------------------------------------------------
 
-  Widget _iconBtn(IconData icon, String tooltip) => SizedBox(
+  Widget _iconBtn(IconData icon, String tooltip, VoidCallback onTap) => SizedBox(
         width: 42,
         height: 42,
         child: IconButton(
           tooltip: tooltip,
           padding: EdgeInsets.zero,
           icon: Icon(icon, color: SamrahColors.text, size: 24),
-          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$tooltip — قريباً'), duration: const Duration(seconds: 2))),
+          onPressed: onTap,
         ),
       );
 

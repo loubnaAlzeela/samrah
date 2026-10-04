@@ -1,14 +1,15 @@
-// التحديات — daily and weekly tasks that pay «نجوم». DEMO: the list and each
-// task's progress are made up and held in memory (like lib/services/store.dart);
-// claiming really adds the stars to the wallet. Later, finished hands and games
-// will call [Challenges.record] so progress comes from real play.
+// التحديات — daily and weekly tasks that pay «نجوم». The server counts every finished game for them
+// (apps/server/src/accounts.ts CHALLENGES) and pays the reward when the player claims it; this class keeps the
+// last list it sent.
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show IconData, Icons;
 
-import 'store.dart';
+import 'account.dart';
+import 'api.dart';
+import 'error_text.dart';
 
 class Challenge {
-  Challenge({required this.id, required this.title, required this.icon, required this.goal, required this.reward, this.progress = 0, this.game});
+  Challenge({required this.id, required this.title, required this.icon, required this.goal, required this.reward, this.progress = 0, this.game, this.claimed = false});
   final String id;
   final String title;
   final IconData icon;
@@ -20,53 +21,89 @@ class Challenge {
   /// The game it counts in (a wire variant); null = any game.
   final String? game;
   int progress;
-  bool claimed = false;
+  bool claimed;
 
   bool get done => progress >= goal;
   bool get claimable => done && !claimed;
+
+  static IconData iconOf(String? name) => switch (name) {
+        'trophy' => Icons.emoji_events_outlined,
+        'target' => Icons.track_changes_rounded,
+        'shuffle' => Icons.shuffle_rounded,
+        'group' => Icons.group_outlined,
+        'star' => Icons.star_outline_rounded,
+        'grid' => Icons.grid_view_rounded,
+        'medal' => Icons.military_tech_outlined,
+        _ => Icons.style_outlined,
+      };
+
+  factory Challenge.fromJson(Map j) => Challenge(
+        id: j['id'] as String,
+        title: j['title'] as String,
+        icon: iconOf(j['icon'] as String?),
+        goal: (j['goal'] as num).toInt(),
+        reward: (j['reward'] as num).toInt(),
+        progress: (j['progress'] as num? ?? 0).toInt(),
+        game: j['game'] as String?,
+        claimed: j['claimed'] == true,
+      );
 }
 
 class Challenges extends ChangeNotifier {
   Challenges._();
   static final instance = Challenges._();
 
-  final daily = <Challenge>[
-    Challenge(id: 'd-play3', title: 'العب 3 جولات من أي لعبة', icon: Icons.style_outlined, goal: 3, reward: 5, progress: 3),
-    Challenge(id: 'd-tarneeb2', title: 'افز بجولتين طرنيب', icon: Icons.emoji_events_outlined, goal: 2, reward: 8, progress: 1, game: 'tarneeb'),
-    Challenge(id: 'd-bid10', title: 'اطلب 10 في الطرنيب ونفّذها', icon: Icons.track_changes_rounded, goal: 1, reward: 15, game: 'tarneeb'),
-    Challenge(id: 'd-trixhand', title: 'العب جولة تركس وجولة هاند', icon: Icons.shuffle_rounded, goal: 2, reward: 6, progress: 2),
-    Challenge(id: 'd-friend', title: 'العب مع صديق في غرفة خاصة', icon: Icons.group_outlined, goal: 1, reward: 5),
-  ];
-
-  final weekly = <Challenge>[
-    Challenge(id: 'w-play25', title: 'العب 25 جولة', icon: Icons.style_outlined, goal: 25, reward: 30, progress: 17),
-    Challenge(id: 'w-baloot10', title: 'افز بـ10 جولات بلوت', icon: Icons.emoji_events_outlined, goal: 10, reward: 40, progress: 4, game: 'baloot'),
-    Challenge(id: 'w-400', title: 'اجمع مشروع «أربعمية» في البلوت', icon: Icons.auto_awesome_outlined, goal: 1, reward: 50, game: 'baloot'),
-    Challenge(id: 'w-variety', title: 'جرّب 4 ألعاب مختلفة', icon: Icons.grid_view_rounded, goal: 4, reward: 25, progress: 4),
-    Challenge(id: 'w-comp', title: 'اشترك في مسابقة', icon: Icons.military_tech_outlined, goal: 1, reward: 20),
-  ];
+  List<Challenge> daily = [];
+  List<Challenge> weekly = [];
+  bool loaded = false;
+  String? error;
 
   /// Finished tasks whose stars are still waiting (the badge on the nav).
   int get claimableCount => [...daily, ...weekly].where((c) => c.claimable).length;
 
-  /// Adds the reward to the wallet once.
-  void claim(Challenge c) {
-    if (!c.claimable) return;
-    c.claimed = true;
-    Store.instance.earnStars(c.reward);
+  void _apply(Object? list) {
+    if (list is! List) return;
+    final all = [for (final j in list) Challenge.fromJson(j as Map)];
+    final periods = {for (final j in list) (j as Map)['id']: j['period']};
+    daily = all.where((c) => periods[c.id] == 'day').toList();
+    weekly = all.where((c) => periods[c.id] == 'week').toList();
+    loaded = true;
+    error = null;
     notifyListeners();
   }
 
-  /// Daily tasks start over at midnight.
-  static DateTime nextDailyReset([DateTime? now]) {
-    final n = now ?? DateTime.now();
-    return DateTime(n.year, n.month, n.day + 1);
+  Future<void> load() async {
+    try {
+      _apply(await Api.instance.get('/challenges'));
+    } on ApiError catch (e) {
+      error = errorText(e.code);
+      notifyListeners();
+    }
   }
 
-  /// Weekly tasks start over on Saturday at midnight.
+  /// Adds the reward to the wallet once; null when done, else the reason.
+  Future<String?> claim(Challenge c) async {
+    if (!c.claimable) return null;
+    try {
+      final r = await Api.instance.post('/challenges/${c.id}/claim') as Map;
+      _apply(r['challenges']);
+      Account.instance.apply(r['me']);
+      return null;
+    } on ApiError catch (e) {
+      return errorText(e.code);
+    }
+  }
+
+  /// The day turns at midnight in the Gulf and the Levant (UTC+3), as on the server.
+  static DateTime nextDailyReset([DateTime? now]) {
+    final n = (now ?? DateTime.now()).toUtc().add(const Duration(hours: 3));
+    return DateTime.utc(n.year, n.month, n.day + 1).subtract(const Duration(hours: 3)).toLocal();
+  }
+
+  /// Weekly tasks start over on Saturday at midnight (UTC+3).
   static DateTime nextWeeklyReset([DateTime? now]) {
-    final n = now ?? DateTime.now();
+    final n = (now ?? DateTime.now()).toUtc().add(const Duration(hours: 3));
     final days = (DateTime.saturday - n.weekday) % 7;
-    return DateTime(n.year, n.month, n.day + (days == 0 ? 7 : days));
+    return DateTime.utc(n.year, n.month, n.day + (days == 0 ? 7 : days)).subtract(const Duration(hours: 3)).toLocal();
   }
 }

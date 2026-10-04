@@ -13,7 +13,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../screens/settings_screen.dart' show AppSettings;
+import '../services/app_settings.dart';
 
 /// Accent for the active wedge's border and the centre button — change it here.
 const kWheelAccent = Color(0xFFFA8112);

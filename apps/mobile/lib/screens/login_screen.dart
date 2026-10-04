@@ -1,11 +1,16 @@
-// Preliminary auth screens — UI only, no backend yet (no database exists).
-// Both "تسجيل دخول" and "إنشاء حساب" just carry the name forward to
-// HomeScreen for now. Replace with real auth once a database is built.
+// The way in. A new player picks a name and plays at once (an account is created on the server with the
+// welcome balance); a returning player signs in with the email, phone or Google account they linked.
 import 'package:flutter/material.dart';
 
+import '../services/account.dart';
+import '../services/api.dart';
+import '../services/config.dart';
+import '../services/error_text.dart';
 import '../theme/samrah_theme.dart';
-import 'home_screen.dart';
 import '../widgets/motion.dart';
+import 'auth_flows.dart';
+import 'home_screen.dart';
+import 'legal_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,19 +21,36 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _nameCtrl = TextEditingController();
-  final _contactCtrl = TextEditingController();
-  bool _isSignup = false;
+  bool _returning = false;
+  bool _busy = false;
+  String? _error;
 
-  void _continue() {
+  void _home() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => HomeScreen(playerName: Account.instance.me?.name ?? 'لاعب')));
+  }
+
+  Future<void> _newPlayer() async {
     final name = _nameCtrl.text.trim();
-    if (name.isEmpty) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => HomeScreen(playerName: name)));
+    if (name.length < 2) return setState(() => _error = 'اكتب اسماً من حرفين على الأقل');
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await Account.instance.signInAsGuest(name);
+      _home();
+    } on ApiError catch (e) {
+      setState(() {
+        _busy = false;
+        _error = errorText(e.code);
+      });
+    }
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _contactCtrl.dispose();
     super.dispose();
   }
 
@@ -42,69 +64,94 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: PopIn(
-                  from: 0.7,
-                  duration: Motion.slow,
-                  child: Image.asset('assets/brand/samrah-mark.png', height: 130, fit: BoxFit.contain),
-                ),
-              ),
+              Center(child: PopIn(from: 0.7, duration: Motion.slow, child: Image.asset('assets/brand/samrah-mark.png', height: 130, fit: BoxFit.contain))),
               const SizedBox(height: 8),
               EnterFrom(
                 delay: const Duration(milliseconds: 200),
-                child: Center(
-                  child: Image.asset('assets/brand/samrah-wordmark-ar.png', height: 44, fit: BoxFit.contain, semanticLabel: 'سمرة'),
-                ),
+                child: Center(child: Image.asset('assets/brand/samrah-wordmark-ar.png', height: 44, fit: BoxFit.contain, semanticLabel: 'سمرة')),
               ),
               const SizedBox(height: 36),
-
-              // Mode switch: دخول / حساب جديد — neutral segmented control (brass stays for the one primary button below).
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(color: SamrahColors.surface2, borderRadius: BorderRadius.circular(14)),
-                child: Row(
-                  children: [
-                    Expanded(child: _segment('تسجيل دخول', !_isSignup, () => setState(() => _isSignup = false))),
-                    Expanded(child: _segment('حساب جديد', _isSignup, () => setState(() => _isSignup = true))),
-                  ],
+                child: Row(children: [
+                  Expanded(child: _segment('لاعب جديد', !_returning, () => setState(() => _returning = false))),
+                  Expanded(child: _segment('لديّ حساب', _returning, () => setState(() => _returning = true))),
+                ]),
+              ),
+              const SizedBox(height: 20),
+              if (!_returning) ...[
+                TextField(
+                  controller: _nameCtrl,
+                  textAlign: TextAlign.center,
+                  maxLength: 16,
+                  decoration: InputDecoration(labelText: 'اسمك في اللعبة', errorText: _error),
+                  onSubmitted: (_) => _newPlayer(),
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              TextField(
-                controller: _nameCtrl,
-                textAlign: TextAlign.center,
-                decoration: const InputDecoration(labelText: 'اسمك'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _contactCtrl,
-                textAlign: TextAlign.center,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(labelText: _isSignup ? 'رقم الجوال أو البريد الإلكتروني' : 'رقم الجوال أو البريد الإلكتروني'),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '(مؤقت — لا توجد حسابات حقيقية بعد، بانتظار قاعدة البيانات)',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: SamrahColors.textMuted),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(onPressed: _continue, child: Text(_isSignup ? 'إنشاء الحساب' : 'دخول')),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () {
-                  final n = _nameCtrl.text.trim();
-                  Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => HomeScreen(playerName: n.isEmpty ? 'ضيف' : n)));
-                },
-                child: const Text('متابعة كضيف', style: TextStyle(color: SamrahColors.textMuted)),
-              ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: _busy ? null : _newPlayer,
+                  child: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('ابدأ اللعب'),
+                ),
+                const SizedBox(height: 8),
+                const Text('يمكنك ربط بريدك أو هاتفك لاحقاً من الإعدادات لتحفظ حسابك.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: SamrahColors.textMuted)),
+              ] else ...[
+                _provider(Icons.mail_outline, 'البريد الإلكتروني', const Color(0xFF2E9E4F), () async {
+                  if (await showEmailSheet(context, link: false)) _home();
+                }),
+                _provider(Icons.phone_rounded, 'رقم الهاتف', const Color(0xFFD9A21E), () async {
+                  if (await showPhoneSheet(context)) _home();
+                }),
+                if (kGoogleServerClientId.isNotEmpty)
+                  _provider(Icons.g_mobiledata_rounded, 'حساب Google', SamrahColors.surface2, () async {
+                    final err = await continueWithGoogle();
+                    if (err != null) {
+                      setState(() => _error = err);
+                    } else if (Account.instance.signedIn) {
+                      _home();
+                    }
+                  }),
+                if (_error != null) Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: SamrahColors.suitRed)),
+              ],
+              const SizedBox(height: 16),
+              Wrap(alignment: WrapAlignment.center, children: [
+                const Text('بالمتابعة توافق على ', style: TextStyle(fontSize: 12, color: SamrahColors.textMuted)),
+                InkWell(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LegalScreen(doc: 'terms'))),
+                  child: const Text('شروط الاستخدام', style: TextStyle(fontSize: 12, color: SamrahColors.text, decoration: TextDecoration.underline)),
+                ),
+                const Text(' و', style: TextStyle(fontSize: 12, color: SamrahColors.textMuted)),
+                InkWell(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LegalScreen(doc: 'privacy'))),
+                  child: const Text('سياسة الخصوصية', style: TextStyle(fontSize: 12, color: SamrahColors.text, decoration: TextDecoration.underline)),
+                ),
+              ]),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _provider(IconData icon, String label, Color color, VoidCallback onTap) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Material(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              height: 52,
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(icon, color: Colors.white, size: 24),
+                const SizedBox(width: 8),
+                Text('الدخول عبر $label', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
+        ),
+      );
 
   Widget _segment(String label, bool selected, VoidCallback onTap) {
     return GestureDetector(

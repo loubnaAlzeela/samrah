@@ -1,17 +1,22 @@
-// الأندية — permanent groups of players: a name, an emblem, a president and
-// moderators, a chat, and weekly points the members earn by playing, ranked
-// against the other clubs. DEMO: every club, member and message is made up and
-// held in memory (like lib/services/store.dart); creating a club really takes
-// «وحدات» from the wallet. Opens at level 5 (design/layout-v3.md §9) — levels
-// are not real yet, so the screen offers a demo way in.
+// الأندية — permanent groups of players (apps/server/src/clubs.ts): a president, moderators, a chat, and weekly
+// points the members earn by playing. A new club costs 5000 «وحدات» and opens once the Samrah team approves it;
+// it is open (anyone joins), closed (a request a moderator accepts) or private (by invitation only).
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'store.dart';
+import 'account.dart';
+import 'api.dart';
+import 'error_text.dart';
 
 enum ClubRole { president, moderator, member }
+
+ClubRole? clubRoleOf(Object? s) => switch (s) {
+      'president' => ClubRole.president,
+      'moderator' => ClubRole.moderator,
+      'member' => ClubRole.member,
+      _ => null,
+    };
 
 String clubRoleName(ClubRole r) => switch (r) {
       ClubRole.president => 'الرئيس',
@@ -19,51 +24,72 @@ String clubRoleName(ClubRole r) => switch (r) {
       ClubRole.member => 'عضو',
     };
 
-class ClubMember {
-  ClubMember(this.name, {this.role = ClubRole.member, this.weekPoints = 0, this.level = 5});
-  final String name;
-  ClubRole role;
-  int weekPoints;
-  final int level;
+String clubTypeName(String t) => switch (t) {
+      'open' => 'مفتوح',
+      'private' => 'خاص',
+      _ => 'مغلق',
+    };
+
+class ClubCard {
+  ClubCard(this.j);
+  final Map<String, dynamic> j;
+  String get id => j['id'] as String;
+  String get name => j['name'] as String;
+  String get motto => j['motto'] as String? ?? '';
+  IconData get emblem => Clubs.emblems[((j['emblem'] as num?) ?? 0).toInt() % Clubs.emblems.length];
+  Color get color => Clubs.colors[((j['color'] as num?) ?? 0).toInt() % Clubs.colors.length];
+  int get emblemIndex => ((j['emblem'] as num?) ?? 0).toInt();
+  int get colorIndex => ((j['color'] as num?) ?? 0).toInt();
+  String get type => j['type'] as String? ?? 'closed';
+  String get status => j['status'] as String? ?? 'active';
+  bool get pending => status == 'pending';
+  int get minLevel => ((j['minLevel'] as num?) ?? 1).toInt();
+  int get memberCount => ((j['members'] is List ? (j['members'] as List).length : j['members']) as num? ?? 0).toInt();
+  int get maxMembers => ((j['maxMembers'] as num?) ?? 30).toInt();
+  bool get full => memberCount >= maxMembers;
+  int get weekPoints => ((j['weekPoints'] as num?) ?? 0).toInt();
+  String get president => j['president'] as String? ?? '';
+}
+
+class ClubPerson {
+  ClubPerson(this.j);
+  final Map<String, dynamic> j;
+  String get id => j['id'] as String;
+  int get no => ((j['no'] as num?) ?? 0).toInt();
+  String get name => j['name'] as String? ?? 'لاعب';
+  int get level => ((j['level'] as num?) ?? 1).toInt();
+  bool get online => j['online'] == true;
+  ClubRole get role => clubRoleOf(j['role']) ?? ClubRole.member;
+  int get weekPoints => ((j['weekPoints'] as num?) ?? 0).toInt();
+  int get totalPoints => ((j['totalPoints'] as num?) ?? 0).toInt();
+}
+
+class ClubDetail extends ClubCard {
+  ClubDetail(super.j);
+  ClubRole? get myRole => clubRoleOf(j['myRole']);
+  bool get requested => j['requested'] == true;
+  bool get invited => j['invited'] == true;
+  String? get note => j['note'] as String?;
+  List<ClubPerson> get members => [for (final m in j['members'] as List? ?? const []) ClubPerson(Map<String, dynamic>.from(m as Map))];
+  List<ClubPerson> get requests => [for (final m in j['requests'] as List? ?? const []) ClubPerson(Map<String, dynamic>.from(m as Map))];
+  List<ClubPerson> get invites => [for (final m in j['invites'] as List? ?? const []) ClubPerson(Map<String, dynamic>.from(m as Map))];
+  bool get canManage => myRole == ClubRole.president || myRole == ClubRole.moderator;
 }
 
 class ClubMessage {
-  ClubMessage(this.from, this.text, {DateTime? at}) : at = at ?? DateTime.now();
-  final String from;
-  final String text;
-  final DateTime at;
-}
-
-class Club {
-  Club({required this.id, required this.name, required this.motto, required this.emblem, required this.color, required this.level, this.open = true, this.minLevel = 5});
-  final String id;
-  String name;
-  String motto;
-  final IconData emblem;
-  final Color color;
-  final int level;
-
-  /// Anyone may join at once; otherwise a moderator approves the request.
-  bool open;
-  int minLevel;
-
-  final List<ClubMember> members = [];
-  final List<String> requests = [];
-  final List<ClubMessage> chat = [];
-
-  int get weekPoints => members.fold(0, (s, m) => s + m.weekPoints);
-  bool get full => members.length >= Clubs.maxMembers;
+  ClubMessage(this.j);
+  final Map<String, dynamic> j;
+  String get id => j['id'] as String;
+  String? get from => j['from'] as String?;
+  String get name => j['name'] as String? ?? '';
+  String get text => j['text'] as String? ?? '';
+  DateTime get at => DateTime.fromMillisecondsSinceEpoch((j['at'] as num).toInt());
+  bool get notice => from == null;
 }
 
 class Clubs extends ChangeNotifier {
-  Clubs._() {
-    _seed();
-  }
+  Clubs._();
   static final instance = Clubs._();
-
-  static const maxMembers = 30;
-  static const createCost = 2000;
-  static const unlockLevel = 5;
 
   static const emblems = [
     Icons.shield_rounded, Icons.local_fire_department_rounded, Icons.bolt_rounded, Icons.diamond_rounded,
@@ -73,203 +99,124 @@ class Clubs extends ChangeNotifier {
     Color(0xFFFA8112), Color(0xFF3D6489), Color(0xFF3F7A4C), Color(0xFF8C3F43), Color(0xFFE8C77A), Color(0xFF6E4A9E),
   ];
 
-  static const _names = [
-    'سامر', 'خالد', 'ريم', 'أبو علي', 'نور', 'هادي', 'لين', 'جود', 'مازن', 'رامي', 'سلمى', 'فادي',
-    'يزن', 'تالا', 'كرم', 'دانة', 'عمر', 'غيث', 'رهف', 'وسيم', 'زين', 'بشار', 'هلا', 'مجد',
-  ];
-  static const _chatter = [
-    'مين جاهز لجولة طرنيب؟', 'مبروك للفريق، طلعنا بالترتيب!', 'أحد يدخل معي بلوت؟', 'يلا نجمع نقاط قبل نهاية الأسبوع',
-    'جولة حلوة امبارح 👌', 'مين بيلعب تركس الليلة؟', 'نحتاج نقاط إضافية للمركز الأول', 'تمام، دقيقتين وبدخل',
-  ];
+  static int get createCost => ((Account.instance.config['clubs'] as Map?)?['createCost'] as num? ?? 5000).toInt();
+  static int get maxModerators => ((Account.instance.config['clubs'] as Map?)?['maxModerators'] as num? ?? 4).toInt();
 
-  final _rng = math.Random(7);
-  final List<Club> all = [];
-  String me = 'أنت';
-  String? _myClubId;
-  int _nextId = 1;
+  /// The player's club (or the one they founded, still pending), invitations and their request.
+  ClubDetail? mine;
+  List<ClubCard> invites = [];
+  String? requestedId;
+  int unlockLevel = 1;
+  int level = 1;
+  bool loaded = false;
+  String? error;
 
-  /// The club the player asked to join and is waiting on.
-  String? pendingId;
+  bool get unlocked => level >= unlockLevel;
 
-  /// The demo way past the level-5 lock.
-  bool demoUnlocked = false;
+  /// The club chat (only while a club page is open).
+  List<ClubMessage> chat = [];
+  Timer? _chatTimer;
 
-  Club? get myClub => all.where((c) => c.id == _myClubId).firstOrNull;
-  ClubMember? get myMember => myClub?.members.where((m) => m.name == me).firstOrNull;
-  bool get canManage => myMember != null && myMember!.role != ClubRole.member;
-
-  /// Clubs by this week's points, best first.
-  List<Club> get ranking => [...all]..sort((a, b) => b.weekPoints.compareTo(a.weekPoints));
-
-  void setPlayer(String name) {
-    if (name.trim().isNotEmpty && _myClubId == null) me = name.trim();
-  }
-
-  void unlockDemo() {
-    demoUnlocked = true;
+  Future<void> loadMine() async {
+    try {
+      final r = await Api.instance.get('/clubs/mine') as Map;
+      mine = r['club'] == null ? null : ClubDetail(Map<String, dynamic>.from(r['club'] as Map));
+      invites = [for (final c in r['invites'] as List) ClubCard(Map<String, dynamic>.from(c as Map))];
+      requestedId = r['requestedId'] as String?;
+      unlockLevel = (r['unlockLevel'] as num).toInt();
+      level = (r['level'] as num).toInt();
+      loaded = true;
+      error = null;
+    } on ApiError catch (e) {
+      error = errorText(e.code);
+    }
     notifyListeners();
   }
 
-  void _seed() {
-    Club make(String name, String motto, int emblem, int color, int level, int members, {bool open = true, int minLevel = 5}) {
-      final c = Club(id: 'k${_nextId++}', name: name, motto: motto, emblem: emblems[emblem], color: colors[color], level: level, open: open, minLevel: minLevel);
-      final names = [..._names]..shuffle(_rng);
-      for (var i = 0; i < members; i++) {
-        c.members.add(ClubMember(names[i % names.length] + (i >= names.length ? ' ${i ~/ names.length + 1}' : ''),
-            role: i == 0 ? ClubRole.president : (i < 3 ? ClubRole.moderator : ClubRole.member),
-            weekPoints: _rng.nextInt(400) + 20,
-            level: 5 + _rng.nextInt(30)));
-      }
-      final now = DateTime.now();
-      for (var i = 0; i < 5; i++) {
-        c.chat.add(ClubMessage(c.members[_rng.nextInt(c.members.length)].name, _chatter[_rng.nextInt(_chatter.length)], at: now.subtract(Duration(minutes: (5 - i) * 13))));
-      }
-      return c;
-    }
+  Future<List<ClubCard>> list([String q = '']) async =>
+      [for (final c in await Api.instance.get('/clubs', {if (q.isNotEmpty) 'q': q}) as List) ClubCard(Map<String, dynamic>.from(c as Map))];
 
-    all.addAll([
-      make('صقور الطرنيب', 'نلعب بشرف ونفوز بذكاء', 0, 0, 7, 28, open: false, minLevel: 10),
-      make('ديوانية السمر', 'سهرة كل ليلة', 5, 1, 5, 19),
-      make('أبطال البلوت', 'الصكّة لنا', 1, 3, 6, 24, open: false),
-      make('نجوم الشام', 'من الشام لكل العرب', 4, 4, 4, 15),
-      make('ملوك التركس', 'كل الممالك تحت أمرنا', 6, 5, 3, 11),
-      make('شباب الحارة', 'لمّة حلوة ولعب نظيف', 2, 2, 2, 7),
-    ]);
+  Future<List<ClubCard>> ranking() async => [for (final c in await Api.instance.get('/clubs-ranking') as List) ClubCard(Map<String, dynamic>.from(c as Map))];
+
+  Future<ClubDetail> detail(String id) async => ClubDetail(Map<String, dynamic>.from(await Api.instance.get('/clubs/$id') as Map));
+
+  /// Runs an action; null when done (the player's club is reloaded), else the reason in Arabic.
+  Future<String?> _act(Future<dynamic> Function() f) async {
+    try {
+      await f();
+      await loadMine();
+      return null;
+    } on ApiError catch (e) {
+      return errorText(e.code);
+    }
   }
 
-  /// Joins an open club at once, or sends a request to one that approves members.
-  String? join(Club c) {
-    if (myClub != null) return 'أنت عضو في نادٍ آخر، اخرج منه أولاً';
-    if (c.full) return 'النادي ممتلئ';
-    if (c.open) {
-      c.members.add(ClubMember(me, level: unlockLevel));
-      _myClubId = c.id;
-      pendingId = null;
-      c.chat.add(ClubMessage('النادي', '$me انضم إلى النادي'));
-      _reply(c, 'أهلاً $me، نوّرت النادي!');
-    } else {
-      pendingId = c.id;
-      // a moderator answers after a moment
-      Timer(const Duration(seconds: 3), () {
-        if (pendingId != c.id || myClub != null) return;
-        pendingId = null;
-        c.members.add(ClubMember(me, level: unlockLevel));
-        _myClubId = c.id;
-        c.chat.add(ClubMessage('النادي', 'قُبل طلب $me للانضمام'));
-        notifyListeners();
+  Future<String?> create({required String name, required String motto, required int emblem, required int color, required String type}) => _act(() async {
+        final r = await Api.instance.post('/clubs', {'name': name.trim(), 'motto': motto.trim(), 'emblem': emblem, 'color': color, 'type': type, 'agree': true}) as Map;
+        Account.instance.apply(r['me']);
       });
+
+  /// 'joined' or 'requested', or an error.
+  Future<(String?, String?)> join(String id) async {
+    try {
+      final r = await Api.instance.post('/clubs/$id/join') as Map;
+      await loadMine();
+      return (r['result'] as String, null);
+    } on ApiError catch (e) {
+      return (null, errorText(e.code));
     }
-    notifyListeners();
-    return null;
   }
 
-  void cancelRequest() {
-    pendingId = null;
-    notifyListeners();
+  Future<String?> cancelRequest(String id) => _act(() => Api.instance.post('/clubs/$id/cancel-request'));
+  Future<String?> decline(String id) => _act(() => Api.instance.post('/clubs/$id/decline'));
+  Future<String?> leave() => _act(() async {
+        Account.instance.apply(await Api.instance.post('/clubs/leave'));
+        chat = [];
+      });
+  Future<String?> answer(String userId, bool accept) => _act(() => Api.instance.post('/clubs/${mine!.id}/requests/$userId', {'accept': accept}));
+  Future<String?> invite(String ref) => _act(() => Api.instance.post('/clubs/${mine!.id}/invite', {'ref': ref.trim()}));
+  Future<String?> cancelInvite(String userId) => _act(() => Api.instance.delete('/clubs/${mine!.id}/invite/$userId'));
+  Future<String?> remove(String userId) => _act(() => Api.instance.delete('/clubs/${mine!.id}/members/$userId'));
+  Future<String?> setRole(String userId, String role) => _act(() => Api.instance.post('/clubs/${mine!.id}/members/$userId/role', {'role': role}));
+  Future<String?> update(Map<String, Object?> patch) => _act(() => Api.instance.patch('/clubs/${mine!.id}', patch));
+
+  // ── chat ──────────────────────────────────────────────────────────────────
+
+  /// Polls the club chat every few seconds while the page is open.
+  void openChat() {
+    _chatTimer?.cancel();
+    unawaited(_fetchChat());
+    _chatTimer = Timer.periodic(const Duration(seconds: 4), (_) => _fetchChat());
   }
 
-  /// Leaves the club. A president who leaves hands the club to the next moderator.
-  void leave() {
-    final c = myClub;
-    if (c == null) return;
-    final wasPresident = myMember!.role == ClubRole.president;
-    c.members.removeWhere((m) => m.name == me);
-    _myClubId = null;
-    if (c.members.isEmpty) {
-      all.remove(c);
-    } else {
-      if (wasPresident) {
-        final next = c.members.firstWhere((m) => m.role == ClubRole.moderator, orElse: () => c.members.first);
-        next.role = ClubRole.president;
-      }
-      c.chat.add(ClubMessage('النادي', '$me غادر النادي'));
-    }
-    notifyListeners();
+  void closeChat() {
+    _chatTimer?.cancel();
+    _chatTimer = null;
   }
 
-  /// Founds a club; the player becomes its president. Costs [createCost] «وحدات».
-  String? create({required String name, required String motto, required IconData emblem, required Color color, required bool open}) {
-    if (myClub != null) return 'أنت عضو في نادٍ آخر، اخرج منه أولاً';
-    final n = name.trim();
-    if (n.length < 3) return 'اسم النادي قصير جداً';
-    if (all.any((c) => c.name == n)) return 'هذا الاسم مستخدم';
-    if (!Store.instance.spend(createCost)) return 'رصيد الوحدات لا يكفي: تحتاج $createCost وحدة';
-    final c = Club(id: 'k${_nextId++}', name: n, motto: motto.trim(), emblem: emblem, color: color, level: 1, open: open);
-    c.members.add(ClubMember(me, role: ClubRole.president, level: unlockLevel));
-    c.chat.add(ClubMessage('النادي', 'أسّس $me النادي'));
-    all.add(c);
-    _myClubId = c.id;
-    pendingId = null;
-    // a few people ask to join a new club
-    for (var i = 0; i < 3; i++) {
-      c.requests.add(_names[_rng.nextInt(_names.length)]);
-    }
-    notifyListeners();
-    return null;
-  }
-
-  void accept(String who) {
-    final c = myClub;
-    if (c == null || !canManage || c.full) return;
-    if (c.requests.remove(who)) {
-      c.members.add(ClubMember(who, level: 5 + _rng.nextInt(20)));
-      c.chat.add(ClubMessage('النادي', '$who انضم إلى النادي'));
-    }
-    notifyListeners();
-  }
-
-  void reject(String who) {
-    myClub?.requests.remove(who);
-    notifyListeners();
-  }
-
-  /// Moderators may remove members; only the president removes or promotes moderators.
-  bool canAct(ClubMember target) {
-    final mine = myMember;
-    if (mine == null || target.name == me || target.role == ClubRole.president) return false;
-    if (mine.role == ClubRole.president) return true;
-    return mine.role == ClubRole.moderator && target.role == ClubRole.member;
-  }
-
-  void toggleModerator(ClubMember m) {
-    if (myMember?.role != ClubRole.president || m.role == ClubRole.president) return;
-    m.role = m.role == ClubRole.moderator ? ClubRole.member : ClubRole.moderator;
-    notifyListeners();
-  }
-
-  void remove(ClubMember m) {
-    final c = myClub;
-    if (c == null || !canAct(m)) return;
-    c.members.remove(m);
-    c.chat.add(ClubMessage('النادي', 'أُخرج ${m.name} من النادي'));
-    notifyListeners();
-  }
-
-  void updateSettings({required String motto, required bool open}) {
-    final c = myClub;
-    if (c == null || myMember?.role != ClubRole.president) return;
-    c.motto = motto.trim();
-    c.open = open;
-    notifyListeners();
-  }
-
-  void send(String text) {
-    final c = myClub;
-    final t = text.trim();
-    if (c == null || t.isEmpty) return;
-    c.chat.add(ClubMessage(me, t));
-    if (c.members.length > 1 && _rng.nextDouble() < 0.6) _reply(c, _chatter[_rng.nextInt(_chatter.length)]);
-    notifyListeners();
-  }
-
-  void _reply(Club c, String text) {
-    final others = c.members.where((m) => m.name != me).toList();
-    if (others.isEmpty) return;
-    final who = others[_rng.nextInt(others.length)].name;
-    Timer(Duration(milliseconds: 1500 + _rng.nextInt(2000)), () {
-      if (!all.contains(c)) return;
-      c.chat.add(ClubMessage(who, text));
+  Future<void> _fetchChat() async {
+    final c = mine;
+    if (c == null || c.pending) return;
+    try {
+      final after = chat.isEmpty ? null : chat.last.at.millisecondsSinceEpoch;
+      final list = await Api.instance.get('/clubs/${c.id}/chat', {if (after != null) 'after': '$after'}) as List;
+      if (list.isEmpty) return;
+      final known = {for (final m in chat) m.id};
+      chat = [...chat, for (final m in list) if (!known.contains((m as Map)['id'])) ClubMessage(Map<String, dynamic>.from(m))];
       notifyListeners();
-    });
+    } catch (_) {}
+  }
+
+  Future<String?> send(String text) async {
+    final c = mine;
+    final t = text.trim();
+    if (c == null || t.isEmpty) return null;
+    try {
+      chat = [...chat, ClubMessage(Map<String, dynamic>.from(await Api.instance.post('/clubs/${c.id}/chat', {'text': t}) as Map))];
+      notifyListeners();
+      return null;
+    } on ApiError catch (e) {
+      return errorText(e.code);
+    }
   }
 }

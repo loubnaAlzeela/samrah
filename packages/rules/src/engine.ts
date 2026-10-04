@@ -170,3 +170,31 @@ export function gameProgress(g: AnyGame, target: number): number {
   else pct = (Math.max(...g.teamScores) / target) * 100;
   return Math.max(0, Math.min(100, Math.round(pct)));
 }
+
+/**
+ * The seats that won a finished game (several on a tie; a whole team in a partnership game).
+ * Empty while the game is still running, or when it ended in a draw with no winner.
+ */
+export function matchWinners(g: AnyGame): number[] {
+  if (g.phase !== 'gameOver') return [];
+  if (isTrixGame(g) || is187Game(g)) return g.winnerSeats.slice();
+  if (isHandGame(g)) return g.winners.slice();
+  // tarneeb / syrian 41 / 400 / baloot: a team (seats 0+2 or 1+3)
+  const team = g.winner;
+  if (team === null) return [];
+  return [0, 1, 2, 3].filter((s) => s % 2 === team);
+}
+
+/** Seats of a finished game from best to worst (by the game's own scores), for knockout tables that send on two. */
+export function seatRanking(g: AnyGame): number[] {
+  const seats = Array.from({ length: isHandGame(g) || is187Game(g) ? g.scores.length : 4 }, (_, i) => i);
+  const score = (s: number): number => {
+    if (isHandGame(g)) return -g.scores[s]; // Hand: the lowest total is best
+    if (is187Game(g)) return g.scores[s];
+    if (isTrixGame(g)) return g.variant === 'trixPartners' || g.variant === 'trixComplexPartners' ? g.teamScores[s % 2] : g.seatScores[s];
+    if (isBalootGame(g)) return g.teamScores[s % 2];
+    return g.variant === 'syrian41' ? g.seatScores[s] : g.teamScores[s % 2];
+  };
+  const winners = new Set(matchWinners(g));
+  return seats.sort((a, b) => Number(winners.has(b)) - Number(winners.has(a)) || score(b) - score(a));
+}

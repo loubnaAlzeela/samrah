@@ -4,7 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile/screens/store_screen.dart';
 import 'package:mobile/theme/samrah_theme.dart';
 
+import 'fake_server.dart';
+
 void main() {
+  setUp(() => FakeServer().install());
+
   testWidgets('every store tab builds and lays out at phone and desktop widths', (tester) async {
     GoogleFonts.config.allowRuntimeFetching = false;
     addTearDown(tester.view.reset);

@@ -11,6 +11,7 @@ import '../models/room_view.dart';
 import '../services/colyseus_client.dart';
 import '../services/game_audio.dart';
 import '../theme/samrah_theme.dart';
+import '../widgets/table_social.dart';
 import '../widgets/hand_view.dart';
 import '../widgets/playing_card_view.dart';
 import '../widgets/table_stage.dart';
@@ -185,7 +186,25 @@ class _HandGameScreenState extends State<HandGameScreen> with TurnClock {
             child: SeatAvatar(name: name(me), size: 50, turn: myTurn && acting && !meAuto, frac: frac),
           ),
           Positioned(left: 8, top: 754, child: NamePill(text: name(me), width: 62, highlight: true)),
-          Positioned(left: 76, right: 12, top: 700, height: 84, child: _actions(g, playing, drawing)),
+          Positioned(left: 76, right: 56, top: 700, height: 84, child: _actions(g, playing, drawing)),
+          Positioned(right: 8, top: 696, child: _iconBtn(Icons.chat_bubble_outline, 'الدردشة', () => openTableChat(context, widget.conn, v))),
+          Positioned(right: 8, top: 740, child: _iconBtn(Icons.card_giftcard, 'الهدايا', () => openGiftSheet(context, widget.conn, v))),
+          // chat bubbles and gifts: the others sit in one row at the top, in turn order from my right
+          Positioned.fill(
+            key: const ValueKey('table-social'),
+            child: TableSocialLayer(
+              conn: widget.conn,
+              mySeat: me,
+              anchor: (s) {
+                if (s == me) return const Offset(39, 725);
+                final row = others.reversed.toList();
+                final k = row.length;
+                final gap = (374 - 74.0 * k) / (k + 1);
+                final i = row.indexOf(s).clamp(0, k - 1);
+                return Offset(8 + gap * (i + 1) + 74.0 * i + 37, 30);
+              },
+            ),
+          ),
 
           if (meAuto)
             Positioned(
@@ -382,6 +401,12 @@ class _HandGameScreenState extends State<HandGameScreen> with TurnClock {
   }
 
   // --- actions ---------------------------------------------------------------------
+
+  Widget _iconBtn(IconData icon, String tooltip, VoidCallback onTap) => SizedBox(
+        width: 42,
+        height: 42,
+        child: IconButton(tooltip: tooltip, padding: EdgeInsets.zero, icon: Icon(icon, color: SamrahColors.text, size: 24), onPressed: onTap),
+      );
 
   Widget _actions(HandGameView g, bool playing, bool drawing) {
     final send = widget.conn.send;

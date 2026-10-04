@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/services/competitions.dart';
-import 'package:mobile/services/store.dart';
 
 void main() {
   test('75% of the seats are needed to start', () {
@@ -34,36 +33,46 @@ void main() {
     expect(tarneeb.seatOptions, [2, 4, 8, 16, 32]);
   });
 
-  test('creating needs membership and takes prize plus commission', () {
-    final comps = Competitions.instance;
-    final store = Store.instance;
-    final game = Competitions.games.first;
-    final (none, err) = comps.create(title: 'x', game: game, seats: 4, fee: 100, prize: 1000, target: 41);
-    expect(none, isNull);
-    expect(err, isNotNull);
-
-    store.stars = Store.vipPrice;
-    expect(store.buyVip(), isTrue);
-    final before = store.units;
-    final (c, err2) = comps.create(title: 'كأسي', game: game, seats: 4, fee: 100, prize: 1000, target: 41);
-    expect(err2, isNull);
-    expect(store.units, before - 1000 - 1200);
-
-    // cancelling refunds everything except 300 per seat
-    comps.cancel(c!);
-    expect(c.phase, CompPhase.cancelled);
-    expect(store.units, before - 1200);
-  });
-
-  test('joining pays the fee, leaving refunds it', () {
-    final comps = Competitions.instance;
-    final store = Store.instance;
-    final c = comps.all.firstWhere((c) => !c.mine && c.phase == CompPhase.registering && c.fee > 0 && !c.full);
-    final before = store.units;
-    expect(comps.join(c, partner: 'سامي'), isNull);
-    expect(store.units, before - c.fee);
-    expect(c.myRequest, contains('سامي'));
-    comps.leave(c);
-    expect(store.units, before);
+  test("a competition reads the server's view", () {
+    final c = Competition({
+      'id': 'c1',
+      'title': 'كأس الخميس',
+      'variant': 'tarneeb',
+      'seats': 4,
+      'fee': 100,
+      'prize': 1000,
+      'target': 41,
+      'organiser': {'id': 'u9', 'no': 100009, 'name': 'سامر', 'rating': 15},
+      'mine': false,
+      'deadline': 1759500000000,
+      'autoAccept': true,
+      'phase': 'running',
+      'entrants': [
+        {'id': 'e1', 'name': 'لبنى و ريم', 'userIds': ['u1', 'u2']},
+        {'id': 'e2', 'name': 'خالد و نور', 'userIds': ['u3', 'u4']},
+        {'id': 'e3', 'name': 'هادي و لين', 'userIds': ['u5', 'u6']},
+      ],
+      'requests': [],
+      'requestCount': 0,
+      'myEntry': {'id': 'e1', 'name': 'لبنى و ريم'},
+      'myRequest': null,
+      'rounds': [
+        ['لبنى و ريم', 'خالد و نور', null, 'هادي و لين'],
+      ],
+      'myMatch': {'room': 'ABC234', 'status': 'playing', 'round': 0},
+      'winner': null,
+      'reviewEndsAt': null,
+      'complaints': [],
+      'clear': [],
+      'note': null,
+    });
+    expect(c.game.partnership, isTrue);
+    expect(c.phase, CompPhase.running);
+    expect(c.entrants, hasLength(3));
+    expect(c.canStart, isTrue); // 3 of 4
+    expect(c.joined, isTrue);
+    expect(c.myMatchRoom, 'ABC234');
+    expect(c.rounds.single[2], isNull);
+    expect(c.organiserRating, 15);
   });
 }

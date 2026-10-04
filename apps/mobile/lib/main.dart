@@ -1,14 +1,23 @@
-// Samrah (سمرة) — mobile client. Entry point only; no logic here.
-// See lib/screens/room_screen.dart and lib/services/colyseus_client.dart.
+// Samrah (سمرة) — mobile client. Entry point only: load what the phone kept, then the opening scene, then the
+// home screen (signed in) or the way in.
 import 'package:flutter/material.dart';
 
+import 'app_nav.dart';
+import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/account.dart';
+import 'services/prefs.dart';
 import 'services/sound.dart';
 import 'theme/samrah_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // the session, the last copy of the account and the switches kept on the phone
+  await Prefs.load();
+  Account.instance.restore();
+  // signed out (here, from another phone, or the account was deleted): back to the way in
+  Account.instance.onSignedOut = () => navigatorKey.currentState?.pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   // the game falls silent in the background (a table left open keeps playing)
   Sound.instance.watchAppLifecycle();
   runApp(const SamrahApp());
@@ -21,7 +30,10 @@ class SamrahApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final me = Account.instance.me;
     return MaterialApp(
+      navigatorKey: navigatorKey,
+      scaffoldMessengerKey: messengerKey,
       debugShowCheckedModeBanner: false,
       title: 'Samrah',
       theme: SamrahTheme.dark(),
@@ -29,7 +41,7 @@ class SamrahApp extends StatelessWidget {
       themeMode: ThemeMode.dark,
       locale: const Locale('ar'),
       builder: (context, child) => Directionality(textDirection: TextDirection.rtl, child: child!),
-      home: const SplashScreen(next: LoginScreen()),
+      home: SplashScreen(next: Account.instance.signedIn ? HomeScreen(playerName: me!.name) : const LoginScreen()),
     );
   }
 }

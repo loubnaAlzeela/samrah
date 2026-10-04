@@ -10,14 +10,16 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lamma/rules": "*",
     "@colyseus/core": "^0.18.17",
+    "@colyseus/schema": "^5.0.34",
     "@colyseus/ws-transport": "^0.18.4",
-    "@colyseus/schema": "^5.0.34"
+    "@lamma/rules": "*",
+    "express": "^5.2.1"
   },
   "devDependencies": {
+    "@colyseus/sdk": "^0.18.4",
+    "@types/express": "^5.0.6",
     "@types/node": "^24.0.0",
-    "vitest": "^4.1.0",
-    "@colyseus/sdk": "^0.18.4"
+    "vitest": "^4.1.0"
   }
 }

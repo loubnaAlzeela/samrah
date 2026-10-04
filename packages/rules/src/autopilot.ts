@@ -6,7 +6,9 @@ import { legalCards, trickWinner } from './trick.ts';
  * «الطيار الآلي»: plays ONE move for `seat` when its turn timer runs out or the player is away.
  * Pure and deterministic (same state -> same move) and always legal.
  *
- * - Tarneeb bidding: pass.
+ * - Tarneeb bidding: an estimate of the hand's tricks (aces, guarded kings, length in the longest suit) opens or
+ *   raises when the team can make it; never over the partner. The last seat after three passes bids 7, so a
+ *   table of computers (or of absent players) never redeals for ever.
  * - Tarneeb trump (autopilot won the auction): longest suit in hand; tie -> stronger suit (higher rank sum).
  * - Syrian / 400 bidding: aces + Q/K of trump, clamped to the seat's minimum..5. If it is the LAST bid and
  *   the total would stay under the minimum total (11; 400: up to 14), it tops up to reach it exactly
@@ -17,7 +19,7 @@ import { legalCards, trickWinner } from './trick.ts';
  */
 export function autoAction(s: GameState, seat: Seat): Action {
   if (s.phase === 'bidding') {
-    if (s.variant === 'tarneeb') return { type: 'bid', value: 'pass' };
+    if (s.variant === 'tarneeb') return { type: 'bid', value: tarneebAutoBid(s, seat) };
     return { type: 'bid', value: syrianAutoBid(s, seat) };
   }
   if (s.phase === 'trump') return { type: 'trump', suit: longestSuit(s.hands[seat]) };
@@ -39,6 +41,27 @@ export function longestSuit(hand: readonly Card[]): Suit {
     }
   }
   return best;
+}
+
+/** Tricks the hand should take by itself: aces, kings with a guard, and the long suit's extra length. */
+export function handTricks(hand: readonly Card[]): number {
+  let t = 0;
+  for (const suit of SUITS) {
+    const cards = hand.filter((c) => suitOf(c) === suit);
+    if (cards.some((c) => rankOf(c) === 14)) t++;
+    if (cards.length >= 2 && cards.some((c) => rankOf(c) === 13)) t++;
+    t += Math.max(0, cards.length - 4);
+  }
+  return t;
+}
+
+export function tarneebAutoBid(s: GameState, seat: Seat): number | 'pass' {
+  const min = minBid(s);
+  if (!s.highBid && s.passed.filter(Boolean).length === 3) return 7;
+  if (s.highBid && s.highBid.seat === partnerOf(seat)) return 'pass';
+  // the partner is counted for three tricks
+  const reach = handTricks(s.hands[seat]) + 3;
+  return reach >= min && min <= 9 ? min : 'pass';
 }
 
 export const SYRIAN_AUTO_MAX_BID = 5;

@@ -1,3 +1,4 @@
+import { partnerOf } from '../src/cards.ts';
 import { describe, expect, it } from 'vitest';
 import {
   type Card,
@@ -24,9 +25,19 @@ function playing(hand: Card[], trick: { seat: Seat; card: Card }[], trump: 'S' |
 }
 
 describe('autopilot: bidding and trump', () => {
-  it('tarneeb: always passes', () => {
+  it('tarneeb: a weak hand passes, a strong one opens at the minimum; never over the partner', () => {
     const g = newGame({ variant: 'tarneeb', target: 41, dealer: 3 }, rng);
-    expect(autoAction(g, g.turn)).toEqual({ type: 'bid', value: 'pass' });
+    const weak = { ...g, hands: g.hands.map((h, i) => (i === g.turn ? ['S2', 'S3', 'S4', 'H2', 'H3', 'H4', 'D2', 'D3', 'D4', 'C2', 'C3', 'C4', 'C5'] : h)) } as GameState;
+    expect(autoAction(weak, weak.turn)).toEqual({ type: 'bid', value: 'pass' });
+    const strong = { ...g, hands: g.hands.map((h, i) => (i === g.turn ? ['S14', 'S13', 'S12', 'S11', 'S10', 'S9', 'H14', 'H13', 'D14', 'D2', 'C2', 'C3', 'C4'] : h)) } as GameState;
+    expect(autoAction(strong, strong.turn)).toEqual({ type: 'bid', value: 7 });
+    const partnerLeads = { ...strong, highBid: { seat: partnerOf(strong.turn), value: 7 } } as GameState;
+    expect(autoAction(partnerLeads, partnerLeads.turn)).toEqual({ type: 'bid', value: 'pass' });
+  });
+  it('tarneeb: the last seat after three passes bids 7 (no endless redeals)', () => {
+    let s = newGame({ variant: 'tarneeb', target: 41, dealer: 3 }, rng);
+    for (let i = 0; i < 3; i++) s = (act(s, s.turn, { type: 'bid', value: 'pass' }) as { state: GameState }).state;
+    expect(autoAction(s, s.turn)).toEqual({ type: 'bid', value: 7 });
   });
   it('trump = longest suit', () => {
     expect(longestSuit(['S2', 'S3', 'S4', 'H14', 'H13', 'D2'])).toBe('S');

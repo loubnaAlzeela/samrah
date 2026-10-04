@@ -9,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/room_view.dart';
 import '../services/colyseus_client.dart';
+import '../services/account.dart';
+import '../services/config.dart';
 import '../services/error_text.dart';
 import '../services/sound.dart';
 import '../theme/samrah_theme.dart';
@@ -16,6 +18,7 @@ import 'b187_game_screen.dart';
 import 'baloot_game_screen.dart';
 import 'game_screen.dart';
 import 'hand_game_screen.dart';
+import 'profile_screen.dart';
 import 'rules_screen.dart';
 import 'trix_game_screen.dart';
 import 'waiting_screen.dart';
@@ -34,17 +37,16 @@ String variantNameAr(String v) => switch (v) {
   _ => 'طرنيب',
 };
 
-/// Defaults to the live server on Railway. A local server needs --dart-define
-/// (the emulator reaches the dev machine at ws://10.0.2.2:2567, a phone at its LAN IP).
-const String kGameServer = String.fromEnvironment('GAME_SERVER', defaultValue: 'wss://samrah-production.up.railway.app');
-
 /// One client for the whole app (created on first use): its connection pool
 /// outlives any single table, so the home screen can warm it up and every
 /// table after the first opens without new handshakes.
 final GameServerClient gameServer = GameServerClient(kGameServer);
 
 class RoomScreen extends StatefulWidget {
-  const RoomScreen({super.key, this.initialName, this.autoOpen = false, this.variant = 'tarneeb', this.settings});
+  const RoomScreen({super.key, this.initialName, this.autoOpen = false, this.variant = 'tarneeb', this.settings, this.joinCode});
+
+  /// Joins this table instead of opening a new one (a public table, a friend's code, a competition match).
+  final String? joinCode;
 
   /// wire variant, e.g. 'tarneeb' | 'syrian41' | 'tarneeb400'.
   final String variant;
@@ -67,7 +69,11 @@ class RoomScreen extends StatefulWidget {
 }
 
 class _RoomScreenState extends State<RoomScreen> {
-  late final _nameCtrl = TextEditingController(text: widget.initialName?.trim().isNotEmpty == true ? widget.initialName : 'لاعب');
+  late final _nameCtrl = TextEditingController(
+    text: Account.instance.me?.name ?? (widget.initialName?.trim().isNotEmpty == true ? widget.initialName : 'لاعب'),
+  );
+
+  bool get _auto => widget.autoOpen || widget.joinCode != null;
 
   RoomConnection? _connection;
   String _openStatus = 'idle'; // idle | connecting | error
@@ -88,7 +94,7 @@ class _RoomScreenState extends State<RoomScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.autoOpen) {
+    if (_auto) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _openRoom());
     }
   }
@@ -102,7 +108,9 @@ class _RoomScreenState extends State<RoomScreen> {
       _lastError = null;
     });
     try {
-      final conn = await gameServer.openRoom(playerName: name, variant: widget.variant, settings: widget.settings);
+      final conn = widget.joinCode != null
+          ? await gameServer.joinRoom(code: widget.joinCode!, playerName: name)
+          : await gameServer.openRoom(playerName: name, variant: widget.variant, settings: widget.settings);
       _connection = conn;
       conn.onState.listen((v) => setState(() => _view = v));
       conn.onError.listen((e) => _flashError(errorText(e)));
@@ -315,6 +323,13 @@ class _RoomScreenState extends State<RoomScreen> {
                 style: const TextStyle(color: SamrahColors.text),
               ),
               trailing: v.seats[i] == null ? null : Text(_seatStatus(v.seats[i]!), style: const TextStyle(color: SamrahColors.textMuted, fontSize: 12)),
+              // a player with an account: their page (message, block, report)
+              onTap: v.seats[i]?.uid == null || i == v.mySeat
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProfileScreen(userRef: v.seats[i]!.uid!)));
+                    },
             ),
         ],
       ),
@@ -345,7 +360,7 @@ class _RoomScreenState extends State<RoomScreen> {
       // and fall back to the name form only if opening failed (or was never automatic)
       body: conn != null
           ? _connectedBody(conn)
-          : widget.autoOpen && _openStatus != 'error'
+          : _auto && _openStatus != 'error'
           ? _preparingTable()
           : _openForm(),
     );

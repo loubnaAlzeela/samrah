@@ -16,6 +16,12 @@ class SeatInfo {
   final bool auto;
   final int level;
 
+  /// The player's account (null for a computer or a guest): their profile, messages and gifts.
+  final String? uid;
+
+  /// Gold member.
+  final bool vip;
+
   SeatInfo({
     required this.name,
     required this.connected,
@@ -23,6 +29,8 @@ class SeatInfo {
     this.heldMsLeft,
     this.auto = false,
     this.level = 1,
+    this.uid,
+    this.vip = false,
   });
 
   static SeatInfo? fromJson(Object? json) {
@@ -35,6 +43,8 @@ class SeatInfo {
       heldMsLeft: asIntOrNull(m['heldMsLeft']),
       auto: m['auto'] == true,
       level: asIntOr(m['level'], 1),
+      uid: m['uid'] as String?,
+      vip: m['vip'] == true,
     );
   }
 }
