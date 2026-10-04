@@ -30,7 +30,6 @@ import 'store_screen.dart';
 import '../services/account.dart';
 import '../services/challenges.dart';
 import '../services/clubs.dart';
-import '../services/push.dart';
 import '../services/store.dart';
 import '../widgets/motion.dart';
 
@@ -71,11 +70,10 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(gameServer.warmUp());
     // keeps the connection warm while the player browses (throttled inside warmUp)
     _warmTimer = Timer.periodic(const Duration(seconds: 10), (_) => unawaited(gameServer.warmUp()));
-    // the account, the badges, the challenges and clubs, and the phone's notifications
+    // the account, the badges, the challenges and clubs
     Account.instance.start();
     unawaited(Challenges.instance.load());
     unawaited(Clubs.instance.loadMine());
-    unawaited(Push.instance.start());
   }
 
   String get _name => Account.instance.me?.name ?? widget.playerName;
