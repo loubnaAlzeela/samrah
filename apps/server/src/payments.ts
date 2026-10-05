@@ -10,18 +10,21 @@
 // IAP_TEST_MODE=1 accepts fake purchases on a development server (never when NODE_ENV=production).
 import { createSign } from 'node:crypto';
 import { db } from './data/db.ts';
-import { type User, credit } from './accounts.ts';
+import { type User, OFFER, addBoost, credit, offerView } from './accounts.ts';
 import { googleAccessToken, serviceAccount } from './google.ts';
 import { fail } from './util.ts';
 
-/** The products as set up in both stores (same ids), with what each one adds to the wallet (bonus included). */
-export const PRODUCTS: Record<string, { currency: 'units' | 'stars'; amount: number }> = {
+/** The products as set up in both stores (same ids), with what each one adds to the wallet (bonus included).
+ * [offer] marks the one-time welcome offer: it also brings a booster and an emote (accounts.ts OFFER). */
+export const PRODUCTS: Record<string, { currency: 'units' | 'stars'; amount: number; offer?: boolean }> = {
   units_500: { currency: 'units', amount: 500 },
   units_1200: { currency: 'units', amount: 1300 },
   units_3500: { currency: 'units', amount: 4000 },
   units_8000: { currency: 'units', amount: 9500 },
   units_18000: { currency: 'units', amount: 22000 },
   units_50000: { currency: 'units', amount: 65000 },
+  units_100000: { currency: 'units', amount: 135000 },
+  [OFFER.id]: { currency: 'units', amount: OFFER.units, offer: true },
   stars_50: { currency: 'stars', amount: 50 },
   stars_120: { currency: 'stars', amount: 130 },
   stars_350: { currency: 'stars', amount: 400 },
@@ -54,6 +57,8 @@ export async function verifyPurchase(u: User, body: { platform?: unknown; produc
   else fail('badPlatform');
 
   const key = `${platform}:${txId!}`;
+  // the offer once per account, while it is open (a resend of the same purchase is answered below)
+  if (product.offer && !db.data.purchases[key] && !offerView(u)) fail('offerGone', 409);
   const seen = db.data.purchases[key];
   if (seen) {
     // the app may resend after a lost answer: fine for the same player, refused for anyone else
@@ -62,6 +67,11 @@ export async function verifyPurchase(u: User, body: { platform?: unknown; produc
   }
   db.data.purchases[key] = { id: key, userId: u.id, platform: platform as 'android' | 'ios' | 'test', productId, currency: product.currency, amount: product.amount, at: Date.now() };
   credit(u, product.currency, product.amount, `purchase:${productId}`);
+  if (product.offer) {
+    u.offerTaken = true;
+    addBoost(u, OFFER.boostHours);
+    if (!u.owned.includes(OFFER.item)) u.owned.push(OFFER.item);
+  }
   if (platform === 'android') void consumeGoogle(productId, token);
   return { added: product.amount, currency: product.currency, already: false };
 }

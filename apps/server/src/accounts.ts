@@ -21,8 +21,51 @@ export const ECONOMY = {
   renameEveryMs: 24 * 3600 * 1000,
 };
 
-/** Store items (the app draws them; the server only knows ids and prices). */
-export const ITEMS: Record<string, { kind: 'back' | 'table'; price: number; vipOnly?: boolean }> = {
+/** What a store item is: the kind decides where it shows (a card back, the table, the seat ring, the name's colour,
+ * a badge beside the name, an effect when a card is played, an emote sent at the table, or an experience booster). */
+export type ItemKind = 'back' | 'table' | 'seat' | 'name' | 'badge' | 'hit' | 'emote' | 'boost';
+
+/** The kinds a player wears (one of each at a time); back and table have their own fields. */
+export const LOOK_KINDS = ['seat', 'name', 'badge', 'hit'] as const;
+export type LookKind = (typeof LOOK_KINDS)[number];
+
+/** Samrah's own mascot (the «وحدات» coin — lib/widgets/emote_face.dart draws it), one fixed colour, each item
+ * just a different face — no colour picks to buy. [emoji] is only a plain-text fallback (for a push notification,
+ * say) — the table itself draws the mascot's own vector face. */
+const EMOTE_FACES = [
+  { id: 'laugh', price: 0, emoji: '😂' },
+  { id: 'wink', price: 300, emoji: '😉' },
+  { id: 'shock', price: 300, emoji: '😲' },
+  { id: 'cry', price: 300, emoji: '😭' },
+  { id: 'sleep', price: 300, emoji: '😴' },
+  { id: 'think', price: 300, emoji: '🤔' },
+  { id: 'nervous', price: 400, emoji: '😬' },
+  { id: 'angry', price: 400, emoji: '😠' },
+  { id: 'tease', price: 400, emoji: '😜' },
+  { id: 'cool', price: 600, emoji: '😎' },
+  { id: 'love', price: 600, emoji: '🥰' },
+  { id: 'star', price: 600, emoji: '🤩' },
+  { id: 'sad', price: 300, emoji: '😢' },
+  { id: 'bored', price: 300, emoji: '😐' },
+  { id: 'shy', price: 400, emoji: '😊' },
+  { id: 'surprised', price: 400, emoji: '😮' },
+  { id: 'proud', price: 400, emoji: '😁' },
+  { id: 'dizzy', price: 600, emoji: '😵' },
+  { id: 'clap', price: 600, emoji: '👏' },
+  { id: 'thumbsup', price: 600, emoji: '👍' },
+  { id: 'strong', price: 800, emoji: '💪' },
+  { id: 'kiss', price: 800, emoji: '😘' },
+] as const;
+
+function emoteItems(): Record<string, { kind: 'emote'; price: number; emoji: string }> {
+  const out: Record<string, { kind: 'emote'; price: number; emoji: string }> = {};
+  for (const f of EMOTE_FACES) out[`emo_${f.id}`] = { kind: 'emote', price: f.price, emoji: f.emoji };
+  return out;
+}
+
+/** Store items (the app draws them; the server only knows ids and prices). Price 0 = everyone has it. Prices are in
+ * «وحدات» unless [stars]. A booster is not kept: buying one doubles the experience earned for [hours]. */
+export const ITEMS: Record<string, { kind: ItemKind; price: number; vipOnly?: boolean; stars?: boolean; hours?: number; emoji?: string }> = {
   orange: { kind: 'back', price: 0 },
   navy: { kind: 'back', price: 300 },
   emerald: { kind: 'back', price: 300 },
@@ -35,7 +78,51 @@ export const ITEMS: Record<string, { kind: 'back' | 'table'; price: number; vipO
   rose: { kind: 'table', price: 600 },
   sand: { kind: 'table', price: 600 },
   royal: { kind: 'table', price: 0, vipOnly: true },
+
+  seat_plain: { kind: 'seat', price: 0 },
+  seat_orange: { kind: 'seat', price: 600 },
+  seat_teal: { kind: 'seat', price: 600 },
+  seat_violet: { kind: 'seat', price: 800 },
+  seat_ruby: { kind: 'seat', price: 800 },
+  seat_rainbow: { kind: 'seat', price: 1500 },
+  seat_gold: { kind: 'seat', price: 0, vipOnly: true },
+
+  name_plain: { kind: 'name', price: 0 },
+  name_orange: { kind: 'name', price: 400 },
+  name_mint: { kind: 'name', price: 400 },
+  name_sky: { kind: 'name', price: 400 },
+  name_pink: { kind: 'name', price: 600 },
+  name_lilac: { kind: 'name', price: 600 },
+  name_gold: { kind: 'name', price: 0, vipOnly: true },
+
+  badge_none: { kind: 'badge', price: 0 },
+  badge_spade: { kind: 'badge', price: 800 },
+  badge_heart: { kind: 'badge', price: 800 },
+  badge_fire: { kind: 'badge', price: 1200 },
+  badge_bolt: { kind: 'badge', price: 1200 },
+  badge_diamond: { kind: 'badge', price: 2500 },
+  badge_crown: { kind: 'badge', price: 0, vipOnly: true },
+
+  hit_none: { kind: 'hit', price: 0 },
+  hit_wave: { kind: 'hit', price: 1000 },
+  hit_sparks: { kind: 'hit', price: 1200 },
+  hit_hearts: { kind: 'hit', price: 1500 },
+  hit_fire: { kind: 'hit', price: 2000 },
+  hit_stars: { kind: 'hit', price: 0, vipOnly: true },
+
+  ...emoteItems(),
+
+  boost_3h: { kind: 'boost', price: 30, stars: true, hours: 3 },
+  boost_12h: { kind: 'boost', price: 80, stars: true, hours: 12 },
+  boost_24h: { kind: 'boost', price: 140, stars: true, hours: 24 },
 };
+
+/** What a new player wears. */
+export const DEFAULT_LOOK: Record<LookKind, string> = { seat: 'seat_plain', name: 'name_plain', badge: 'badge_none', hit: 'hit_none' };
+
+/** The one-time welcome offer, bought with real money (payments.ts): how long it stays open after the account is
+ * made, and what it brings. */
+export const OFFER = { id: 'offer_starter', days: 7, units: 6000, boostHours: 12, item: 'emo_love' };
 
 // ── levels ───────────────────────────────────────────────────────────────────
 
@@ -147,6 +234,12 @@ export interface User {
   owned: string[];
   backId: string;
   tableId: string;
+  /** seat ring, name colour, badge and card-play effect (missing on older accounts: [DEFAULT_LOOK]) */
+  look?: Partial<Record<LookKind, string>>;
+  /** experience counts double until then */
+  boostUntil?: number | null;
+  /** the welcome offer was bought */
+  offerTaken?: boolean;
   /** the day (dayKey) the daily gift was last taken */
   giftDay: string | null;
   xp: number;
@@ -217,6 +310,9 @@ export function createGuest(nameArg: unknown, country?: unknown): { user: User; 
     owned: ['orange', 'cream'],
     backId: 'orange',
     tableId: 'cream',
+    look: { ...DEFAULT_LOOK },
+    boostUntil: null,
+    offerTaken: false,
     giftDay: null,
     xp: 0,
     stats: { played: 0, won: 0, byVariant: {}, week: weekKey(now), weekPlayed: 0, weekWon: 0, weekXp: 0, giftsReceived: 0 },
@@ -343,23 +439,57 @@ export function debit(u: User, currency: 'units' | 'stars', amount: number, reas
 
 export const isVip = (u: User) => u.vipUntil !== null && u.vipUntil > Date.now();
 
+/** Everything the player may use: what they bought, what is free, and the members' items while a member. */
+export function ownedItems(u: User): string[] {
+  const vip = isVip(u);
+  const out = new Set(u.owned);
+  for (const [id, it] of Object.entries(ITEMS)) if (it.kind !== 'boost' && ((it.price === 0 && !it.vipOnly) || (it.vipOnly && vip))) out.add(id);
+  return [...out];
+}
+
+export const ownsItem = (u: User, id: string) => ownedItems(u).includes(id);
+
+/** What the player wears now (a members' item falls back to the default once the membership ends). */
+export function lookOf(u: User): Record<LookKind, string> {
+  const out = { ...DEFAULT_LOOK };
+  for (const k of LOOK_KINDS) {
+    const id = u.look?.[k];
+    if (id && ITEMS[id]?.kind === k && ownsItem(u, id)) out[k] = id;
+  }
+  return out;
+}
+
+export const isBoosted = (u: User) => !!u.boostUntil && u.boostUntil > Date.now();
+
+/** Experience counts double for [hours] more (added to a booster still running). */
+export function addBoost(u: User, hours: number) {
+  u.boostUntil = (isBoosted(u) ? u.boostUntil! : Date.now()) + hours * 3600000;
+  db.touch();
+}
+
 export function buyItem(u: User, id: unknown) {
   const item = typeof id === 'string' ? ITEMS[id] : undefined;
   if (!item) fail('badItem');
-  if (u.owned.includes(id as string)) fail('owned');
   if (item!.vipOnly) fail('vipOnly', 403);
-  debit(u, 'units', item!.price, `item:${id}`);
+  const currency = item!.stars ? 'stars' : 'units';
+  if (item!.kind === 'boost') {
+    debit(u, currency, item!.price, `item:${id}`);
+    addBoost(u, item!.hours!);
+    return;
+  }
+  if (ownsItem(u, id as string)) fail('owned');
+  debit(u, currency, item!.price, `item:${id}`);
   u.owned.push(id as string);
   db.touch();
 }
 
 export function useItem(u: User, id: unknown) {
   const item = typeof id === 'string' ? ITEMS[id] : undefined;
-  if (!item) fail('badItem');
-  const owns = u.owned.includes(id as string) || (item!.vipOnly && isVip(u));
-  if (!owns) fail('notOwned', 403);
+  if (!item || item.kind === 'emote' || item.kind === 'boost') fail('badItem');
+  if (!ownsItem(u, id as string)) fail('notOwned', 403);
   if (item!.kind === 'back') u.backId = id as string;
-  else u.tableId = id as string;
+  else if (item!.kind === 'table') u.tableId = id as string;
+  else u.look = { ...lookOf(u), [item!.kind]: id as string };
   db.touch();
 }
 
@@ -456,6 +586,7 @@ export function rollPeriods(u: User, now = Date.now()) {
 }
 
 function addXp(u: User, xp: number) {
+  if (isBoosted(u)) xp *= 2;
   const before = levelOf(u.xp);
   u.xp += xp;
   u.stats.weekXp += xp;
@@ -538,6 +669,13 @@ export function challengesView(u: User) {
   }));
 }
 
+/** The welcome offer while this player may still buy it (null once bought or past its days). */
+export function offerView(u: User) {
+  const until = u.createdAt + OFFER.days * 86400000;
+  if (u.offerTaken || until <= Date.now()) return null;
+  return { id: OFFER.id, until, units: OFFER.units, boostHours: OFFER.boostHours, item: OFFER.item };
+}
+
 /** The player's own account, as the app keeps it. */
 export function meView(u: User) {
   return {
@@ -554,9 +692,12 @@ export function meView(u: User) {
     stars: u.stars,
     vip: isVip(u),
     vipUntil: u.vipUntil,
-    owned: [...u.owned, ...(isVip(u) ? Object.keys(ITEMS).filter((k) => ITEMS[k].vipOnly) : [])],
+    owned: ownedItems(u),
     backId: u.backId,
     tableId: u.tableId,
+    look: lookOf(u),
+    boostUntil: isBoosted(u) ? u.boostUntil : null,
+    offer: offerView(u),
     giftTaken: u.giftDay === dayKey(),
     giftAmount: giftAmount(u),
     ...levelInfo(u),

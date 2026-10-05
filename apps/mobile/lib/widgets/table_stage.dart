@@ -88,13 +88,16 @@ class SeatFan extends StatelessWidget {
 
 /// Round avatar (first letter of the name) with the brass countdown ring
 /// while it's this seat's turn. [frac] = share of the turn time still left.
+/// [look] is what the player wears from the store: the ring's colours and a
+/// badge on the corner.
 class SeatAvatar extends StatelessWidget {
-  const SeatAvatar({super.key, required this.name, required this.size, this.turn = false, this.frac = 0, this.bot = false});
+  const SeatAvatar({super.key, required this.name, required this.size, this.turn = false, this.frac = 0, this.bot = false, this.look});
   final String name;
   final double size;
   final bool turn;
   final double frac;
   final bool bot;
+  final SeatLook? look;
 
   @override
   Widget build(BuildContext context) {
@@ -106,16 +109,9 @@ class SeatAvatar extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Container(
-            width: size - 8,
-            height: size - 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const RadialGradient(colors: [Color(0xFF555555), SamrahColors.avatarBg], center: Alignment(-0.3, -0.4)),
-              border: Border.all(color: SamrahColors.avatarRing, width: 2),
-              boxShadow: const [BoxShadow(color: Color(0x80000000), blurRadius: 6, offset: Offset(0, 2))],
-            ),
-            alignment: Alignment.center,
+          SeatRing(
+            style: look?.seatStyle ?? Store.seats.first,
+            size: size - 8,
             child: bot
                 ? Icon(Icons.smart_toy_outlined, color: SamrahColors.text, size: size * 0.42)
                 : Text(letter, style: TextStyle(color: SamrahColors.text, fontWeight: FontWeight.w700, fontSize: size * 0.36)),
@@ -124,9 +120,70 @@ class SeatAvatar extends StatelessWidget {
             Positioned.fill(
               child: CustomPaint(painter: _RingPainter(frac.clamp(0.0, 1.0))),
             ),
+          if (look != null && !look!.badgeStyle.none)
+            Positioned(right: 0, bottom: 0, child: SeatBadge(style: look!.badgeStyle, size: size * 0.36)),
         ],
       ),
     ));
+  }
+}
+
+/// The avatar's disc with its ring in a store seat colour (several colours go
+/// round it).
+class SeatRing extends StatelessWidget {
+  const SeatRing({super.key, required this.style, required this.size, required this.child});
+  final SeatStyle style;
+  final double size;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final plain = style.colors.length == 1;
+    final ring = plain ? 2.0 : (size >= 60 ? 4.0 : 3.0);
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(ring),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: plain ? style.colors.first : null,
+        gradient: plain ? null : SweepGradient(colors: style.colors),
+        boxShadow: const [BoxShadow(color: Color(0x80000000), blurRadius: 6, offset: Offset(0, 2))],
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(colors: [Color(0xFF555555), SamrahColors.avatarBg], center: Alignment(-0.3, -0.4)),
+        ),
+        alignment: Alignment.center,
+        child: child,
+      ),
+    );
+  }
+}
+
+/// A store badge: a small coloured disc with its mark.
+class SeatBadge extends StatelessWidget {
+  const SeatBadge({super.key, required this.style, required this.size});
+  final BadgeStyle style;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: style.color,
+        border: Border.all(color: SamrahColors.onTable, width: size * 0.07),
+        boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 3, offset: Offset(0, 1))],
+      ),
+      child: style.icon != null
+          ? Icon(style.icon, size: size * 0.62, color: Colors.white)
+          : Text(style.glyph ?? '', style: TextStyle(color: Colors.white, fontSize: size * 0.6, height: 1, fontWeight: FontWeight.w700)),
+    );
   }
 }
 
@@ -155,10 +212,13 @@ class _RingPainter extends CustomPainter {
 
 /// Name capsule under an avatar.
 class NamePill extends StatelessWidget {
-  const NamePill({super.key, required this.text, this.width = 84, this.highlight = false});
+  const NamePill({super.key, required this.text, this.width = 84, this.highlight = false, this.look});
   final String text;
   final double width;
   final bool highlight;
+
+  /// The name's colour comes from the store.
+  final SeatLook? look;
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +236,7 @@ class NamePill extends StatelessWidget {
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: SamrahColors.onTable, fontSize: 11, fontWeight: FontWeight.w500, height: 1.1),
+        style: TextStyle(color: look?.nameStyle.color ?? SamrahColors.onTable, fontSize: 11, fontWeight: look == null || look!.name == 'name_plain' ? FontWeight.w500 : FontWeight.w700, height: 1.1),
       ),
     );
   }

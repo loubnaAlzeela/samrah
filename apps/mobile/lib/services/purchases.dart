@@ -62,6 +62,14 @@ class Purchases extends ChangeNotifier {
   /// The price to show: the store's (in the player's currency) or the placeholder.
   String priceOf(CoinPack p) => products[p.id]?.price ?? p.price;
 
+  /// What [p] would cost at full price when it is sold at [share] of it (in the store's currency when it has
+  /// answered, else from [fallback]).
+  String fullPriceOf(CoinPack p, double share, String fallback) {
+    final d = products[p.id];
+    if (d == null) return fallback;
+    return '${d.currencySymbol}${(d.rawPrice / share).toStringAsFixed(2)}';
+  }
+
   Future<void> buy(CoinPack pack) async {
     if (!_supported) {
       _say('الشراء متاح من تطبيق الهاتف فقط');

@@ -159,7 +159,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> with SingleTick
           ],
         ),
       );
-      if (go == true && mounted) Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StoreScreen(initialTab: 3)));
+      if (go == true && mounted) Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StoreScreen(initialTab: StoreScreen.membershipTab)));
       return;
     }
     final c = await showModalBottomSheet<Competition>(

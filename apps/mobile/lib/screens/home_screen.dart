@@ -152,9 +152,9 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _wallet(icon: const StarIcon(size: 16), value: Store.instance.stars, tab: 0),
+                _wallet(icon: const StarIcon(size: 16), value: Store.instance.stars, stars: true),
                 const SizedBox(height: 8),
-                _wallet(icon: const UnitIcon(size: 16), value: Store.instance.units, tab: 0),
+                _wallet(icon: const UnitIcon(size: 16), value: Store.instance.units),
               ],
             ),
           ),
@@ -272,10 +272,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _wallet({required Widget icon, required int value, required int tab}) {
+  Widget _wallet({required Widget icon, required int value, bool stars = false}) {
     return InkWell(
       borderRadius: BorderRadius.circular(19),
-      onTap: () => _push(StoreScreen(initialTab: tab)),
+      onTap: () => _push(StoreScreen(initialTab: StoreScreen.coinsTab, stars: stars)),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(

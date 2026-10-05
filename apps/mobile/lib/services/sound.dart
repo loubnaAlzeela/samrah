@@ -23,6 +23,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+import '../widgets/emote_face.dart';
 import 'prefs.dart';
 import 'voice_clips.dart';
 
@@ -87,6 +88,7 @@ class Sound {
 
   final Map<Sfx, _Channel> _sfx = {};
   final Map<String, _Channel> _clips = {};
+  final Map<String, _Channel> _emotes = {};
   Future<void>? _warming;
   FlutterTts? _tts;
   DateTime _lastDeal = DateTime.fromMillisecondsSinceEpoch(0);
@@ -124,6 +126,9 @@ class Sound {
       }
       for (final c in voiceClipMs.keys) {
         _clips[c] = await channel('voice/$c.mp3', 1);
+      }
+      for (final f in kEmoteFaces) {
+        _emotes[f.id] = await channel('sounds/emote_${f.id}.wav', 1);
       }
     } catch (_) {
       // no audio on this device: the game plays silently
@@ -164,6 +169,19 @@ class Sound {
       return;
     }
     unawaited(ch.fire(_volume[s] ?? 1.0).catchError((_) {}));
+  }
+
+  /// Plays the little sting for a store emote (its store id, `emo_<face>`, or the face id alone).
+  void playEmote(String id) {
+    if (!effects || _underTest || !_foreground) return;
+    final parts = id.split('_');
+    final faceId = parts.length > 1 && parts.first == 'emo' ? parts[1] : id;
+    final ch = _emotes[faceId];
+    if (ch == null) {
+      unawaited(warmUp());
+      return;
+    }
+    unawaited(ch.fire(0.9).catchError((_) {}));
   }
 
   /// A quick run of deal flicks, one per card, following the deal animation.

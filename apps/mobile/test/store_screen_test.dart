@@ -13,7 +13,7 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
     addTearDown(tester.view.reset);
     for (final w in [320.0, 390.0, 600.0, 1400.0]) {
-      for (var tab = 0; tab < 4; tab++) {
+      for (var tab = 0; tab <= StoreScreen.membershipTab; tab++) {
         tester.view.physicalSize = Size(w, 900);
         tester.view.devicePixelRatio = 1;
         // a fresh screen each time, or the tab controller keeps the first tab

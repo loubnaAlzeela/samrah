@@ -183,9 +183,9 @@ class _HandGameScreenState extends State<HandGameScreen> with TurnClock {
           Positioned(
             left: 14,
             top: 700,
-            child: SeatAvatar(name: name(me), size: 50, turn: myTurn && acting && !meAuto, frac: frac),
+            child: SeatAvatar(name: name(me), look: lookOf(v.seats, me), size: 50, turn: myTurn && acting && !meAuto, frac: frac),
           ),
-          Positioned(left: 8, top: 754, child: NamePill(text: name(me), width: 62, highlight: true)),
+          Positioned(left: 8, top: 754, child: NamePill(text: name(me), look: lookOf(v.seats, me), width: 62, highlight: true)),
           Positioned(left: 76, right: 56, top: 700, height: 84, child: _actions(g, playing, drawing)),
           Positioned(right: 8, top: 696, child: _iconBtn(Icons.chat_bubble_outline, 'الدردشة', () => openTableChat(context, widget.conn, v))),
           Positioned(right: 8, top: 740, child: _iconBtn(Icons.card_giftcard, 'الهدايا', () => openGiftSheet(context, widget.conn, v))),
@@ -257,13 +257,13 @@ class _HandGameScreenState extends State<HandGameScreen> with TurnClock {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              SeatAvatar(name: name(s), size: 44, turn: g.turn == s && acting, frac: frac, bot: seat?.bot ?? false),
+              SeatAvatar(name: name(s), look: lookOf(v.seats, s), size: 44, turn: g.turn == s && acting, frac: frac, bot: seat?.bot ?? false),
               Positioned(right: -10, bottom: -2, child: CountBox(text: '${g.handCounts[s]}')),
               if (g.dealer == s) const Positioned(left: -8, top: -4, child: DealerTag()),
             ],
           ),
           const SizedBox(height: 3),
-          NamePill(text: label, width: 72),
+          NamePill(text: label, look: lookOf(v.seats, s), width: 72),
           const SizedBox(height: 2),
           Text(
             '${g.scores[s]}${g.opened[s] ? ' · نزل' : ''}',

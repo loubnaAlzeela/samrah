@@ -1,5 +1,6 @@
-// The table's chat and gifts (design/layout-v3.md §6): the chat button opens a sheet of quick messages and a
-// text field; a message shows for four seconds as a cream bubble beside its sender's avatar. The gift button
+// The table's chat and gifts (design/layout-v3.md §6): the chat button opens a sheet of the emotes the player owns
+// from the store, quick messages and a text field; a message shows for four seconds as a cream bubble beside its
+// sender's avatar (an emote shows large, on its own). The gift button
 // sends a small gift, paid in «وحدات», to another player at the table; the whole table sees it fly across.
 // Every game screen puts a [TableSocialLayer] over its stage, with the centre of each seat's avatar.
 import 'dart:async';
@@ -10,6 +11,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/room_view.dart';
 import '../services/account.dart';
 import '../services/colyseus_client.dart';
+import '../services/sound.dart';
+import '../services/store.dart';
+import 'emote_face.dart';
 import '../theme/samrah_theme.dart';
 
 /// The gifts (the server holds the same list with the prices it charges).
@@ -49,10 +53,13 @@ class TableSocialLayer extends StatefulWidget {
 }
 
 class _Bubble {
-  _Bubble(this.seat, this.text, this.key);
+  _Bubble(this.seat, this.text, this.key, {this.emote});
   final int seat;
   final String text;
   final Key key;
+
+  /// a store emote's id (lib/widgets/emote_face.dart): the face alone, large, in place of [text]
+  final String? emote;
 }
 
 class _Flying {
@@ -74,7 +81,8 @@ class _TableSocialLayerState extends State<TableSocialLayer> {
   void initState() {
     super.initState();
     _chatSub = widget.conn.onChat.listen((m) {
-      final b = _Bubble(m.seat, m.text, ValueKey('b${_n++}'));
+      if (m.emote != null) Sound.instance.playEmote(m.emote!);
+      final b = _Bubble(m.seat, m.text, ValueKey('b${_n++}'), emote: m.emote);
       setState(() {
         // one bubble per seat: a new message replaces the last one
         _bubbles.removeWhere((x) => x.seat == m.seat);
@@ -143,7 +151,9 @@ class _TableSocialLayerState extends State<TableSocialLayer> {
           builder: (_, s, child) => Transform.scale(scale: s, child: child),
           child: Align(
             alignment: Alignment.center,
-            child: Container(
+            child: b.emote != null
+                ? SizedBox(width: 56, height: 56, child: DecoratedBox(decoration: const BoxDecoration(boxShadow: [BoxShadow(color: Color(0x66000000), blurRadius: 8, offset: Offset(0, 3))]), child: EmoteFace(id: b.emote!, size: 56)))
+                : Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
                 color: SamrahColors.selectedBg,
@@ -206,68 +216,101 @@ Future<void> openTableChat(BuildContext context, RoomConnection conn, RoomView v
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (ctx) => Padding(
       padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.viewInsetsOf(ctx).bottom),
-      child: StreamBuilder<TableChat>(
-        stream: conn.onChat,
-        builder: (ctx, _) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: SamrahColors.line, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 10),
-          Text('الدردشة', textAlign: TextAlign.center, style: GoogleFonts.cairo(fontSize: 19, fontWeight: FontWeight.w700)),
-          if (conn.chatLog.isNotEmpty)
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 180),
-              child: ListView(
-                reverse: true,
-                shrinkWrap: true,
-                children: [
-                  for (final m in conn.chatLog.reversed.take(30))
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Text.rich(TextSpan(children: [
-                        TextSpan(text: '${name(m.seat)}: ', style: TextStyle(color: m.seat == view.mySeat ? SamrahColors.accent : SamrahColors.textMuted, fontWeight: FontWeight.w700)),
-                        TextSpan(text: m.text, style: const TextStyle(color: SamrahColors.text)),
-                      ])),
+      // Only the message list below listens to the chat stream: a message arriving mid-close (an emote
+      // tap pops the sheet and echoes back almost at once) must not rebuild the TextField's subtree —
+      // Navigator.pop() resolves [showModalBottomSheet]'s future (and so disposes [text]) before the
+      // sheet's own closing animation finishes, so anything still rebuilding that controller in during
+      // those last frames crashes it ("used after being disposed").
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: SamrahColors.line, borderRadius: BorderRadius.circular(2)))),
+        const SizedBox(height: 10),
+        Text('الدردشة', textAlign: TextAlign.center, style: GoogleFonts.cairo(fontSize: 19, fontWeight: FontWeight.w700)),
+        StreamBuilder<TableChat>(
+          stream: conn.onChat,
+          builder: (ctx, _) => conn.chatLog.isEmpty
+              ? const SizedBox.shrink()
+              : ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  child: ListView(
+                    reverse: true,
+                    shrinkWrap: true,
+                    children: [
+                      for (final m in conn.chatLog.reversed.take(30))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Text.rich(TextSpan(children: [
+                            TextSpan(text: '${name(m.seat)}: ', style: TextStyle(color: m.seat == view.mySeat ? SamrahColors.accent : SamrahColors.textMuted, fontWeight: FontWeight.w700)),
+                            TextSpan(text: m.text, style: const TextStyle(color: SamrahColors.text)),
+                          ])),
+                        ),
+                    ],
+                  ),
+                ),
+        ),
+        const SizedBox(height: 10),
+        // my emotes from the store
+        SizedBox(
+          height: 52,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              for (final e in Store.emotes)
+                if (Store.instance.owns(e.id))
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 6),
+                    child: Material(
+                      color: SamrahColors.surface2,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () {
+                          conn.send('emote', {'id': e.id});
+                          Navigator.pop(ctx);
+                        },
+                        child: SizedBox(width: 52, height: 52, child: Semantics(label: e.label, child: EmoteFace(id: e.id, size: 52))),
+                      ),
                     ),
-                ],
-              ),
-            ),
-          const SizedBox(height: 10),
-          Wrap(spacing: 6, runSpacing: 6, children: [
-            for (final q in kQuickMessages)
-              ActionChip(
-                label: Text(q),
-                backgroundColor: SamrahColors.surface2,
-                onPressed: () {
-                  send(q);
-                  Navigator.pop(ctx);
-                },
-              ),
-          ]),
-          const SizedBox(height: 10),
-          Row(children: [
-            Expanded(
-              child: TextField(
-                controller: text,
-                maxLength: 120,
-                textInputAction: TextInputAction.send,
-                decoration: const InputDecoration(hintText: 'اكتب رسالة', isDense: true, counterText: ''),
-                onSubmitted: (t) {
-                  send(t);
-                  Navigator.pop(ctx);
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              style: IconButton.styleFrom(backgroundColor: SamrahColors.accent, foregroundColor: SamrahColors.onAccent),
+                  ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final q in kQuickMessages)
+            ActionChip(
+              label: Text(q),
+              backgroundColor: SamrahColors.surface2,
               onPressed: () {
-                send(text.text);
+                send(q);
                 Navigator.pop(ctx);
               },
-              icon: const Icon(Icons.send_rounded, textDirection: TextDirection.rtl),
             ),
-          ]),
         ]),
-      ),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+            child: TextField(
+              controller: text,
+              maxLength: 120,
+              textInputAction: TextInputAction.send,
+              decoration: const InputDecoration(hintText: 'اكتب رسالة', isDense: true, counterText: ''),
+              onSubmitted: (t) {
+                send(t);
+                Navigator.pop(ctx);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            style: IconButton.styleFrom(backgroundColor: SamrahColors.accent, foregroundColor: SamrahColors.onAccent),
+            onPressed: () {
+              send(text.text);
+              Navigator.pop(ctx);
+            },
+            icon: const Icon(Icons.send_rounded, textDirection: TextDirection.rtl),
+          ),
+        ]),
+      ]),
     ),
   );
   text.dispose();

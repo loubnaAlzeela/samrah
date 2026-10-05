@@ -37,7 +37,7 @@ import {
   newAnyGame,
   viewForAny,
 } from '@lamma/rules';
-import { type User, levelOf, recordMatch, userById, userByToken, isVip } from './accounts.ts';
+import { type User, ITEMS, levelOf, lookOf, ownsItem, recordMatch, userById, userByToken, isVip } from './accounts.ts';
 import { giveGift } from './gifts.ts';
 import { type MatchRoomSpec, isLiveMatch, matchRoomClosed, reportMatch } from './competitions.ts';
 import { ApiError } from './util.ts';
@@ -98,6 +98,8 @@ interface SeatInfo {
   /** the player's account (null = a guest from an older app, or a computer) */
   uid: string | null;
   vip: boolean;
+  /** what the player wears from the store: seat ring, name colour, badge, card-play effect (null for computers and guests) */
+  look: Record<string, string> | null;
   lastGiftAt: number;
 }
 
@@ -266,6 +268,7 @@ export class LammaRoom extends Room {
     // "I'm back": a player the autopilot took over (3 timeouts) touches the screen
     this.onMessage('back', (client) => this.handleBack(client));
     this.onMessage('chat', (client, msg: { text?: unknown }) => this.handleChat(client, msg?.text));
+    this.onMessage('emote', (client, msg: { id?: unknown }) => this.handleEmote(client, msg?.id));
     this.onMessage('gift', (client, msg: { seat?: unknown; gift?: unknown }) => this.handleGift(client, msg?.seat, msg?.gift));
     this.onMessage('rematch', (client) => this.handleRematch(client));
     this.onMessage('*', (client) => this.reject(client, 'unknownMessage'));
@@ -368,6 +371,7 @@ export class LammaRoom extends Room {
       lastChatAt: 0,
       uid: user?.id ?? null,
       vip: user ? isVip(user) : false,
+      look: user ? lookOf(user) : null,
       lastGiftAt: 0,
     };
   }
@@ -645,6 +649,22 @@ export class LammaRoom extends Room {
     for (const c of this.clients) if (!this.blocks(c, info.uid)) c.send('chat', msg);
   }
 
+  /** An emote from the store: only one the player owns, at the chat's pace. */
+  private handleEmote(client: Client, id: unknown) {
+    if (!this.settings.chat) return this.reject(client, 'chatOff');
+    const seat = this.seatOf(client);
+    if (seat === null) return;
+    const info = this.seats[seat]!;
+    const now = Date.now();
+    if (now - info.lastChatAt < CHAT_RATE_MS) return this.reject(client, 'chatTooFast');
+    const item = typeof id === 'string' ? ITEMS[id] : undefined;
+    const user = userById(info.uid);
+    if (!item || item.kind !== 'emote' || !user || !ownsItem(user, id as string)) return this.reject(client, 'notOwned');
+    info.lastChatAt = now;
+    const msg = { seat, text: item.emoji!, emote: id as string, at: now };
+    for (const c of this.clients) if (!this.blocks(c, info.uid)) c.send('chat', msg);
+  }
+
   /** The player on [client] blocked the account [uid]: their messages and gifts do not reach them. */
   private blocks(client: Client, uid: string | null): boolean {
     const viewer = this.members.get(client.sessionId)?.uid;
@@ -833,6 +853,7 @@ export class LammaRoom extends Room {
             level: s.level,
             uid: s.uid,
             vip: s.vip,
+            look: s.look,
           }
         : null,
     );

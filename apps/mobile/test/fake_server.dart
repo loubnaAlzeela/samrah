@@ -42,6 +42,9 @@ Map<String, dynamic> meJson({String name = 'لبنى', int units = 9000, int sta
       'blocked': [],
       'clubId': clubId,
       'compBanned': false,
+      'look': {'seat': 'seat_plain', 'name': 'name_plain', 'badge': 'badge_none', 'hit': 'hit_none'},
+      'boostUntil': null,
+      'offer': {'id': 'offer_starter', 'until': DateTime.now().add(const Duration(days: 3)).millisecondsSinceEpoch, 'units': 6000, 'boostHours': 12, 'item': 'emo_love'},
       'sessions': 1,
       'createdAt': 1759500000000,
     };

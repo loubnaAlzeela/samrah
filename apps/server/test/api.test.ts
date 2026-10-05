@@ -107,6 +107,39 @@ describe('store & wallet', () => {
     expect((await call('POST', '/store/gift', token)).body.error).toBe('giftTaken');
   });
 
+  it('wears seat, name, badge and effect items; boosters double experience; free items are owned by all', async () => {
+    const { token } = await guest('أنيق');
+    let me = await ok('GET', '/me', token);
+    expect(me.owned).toEqual(expect.arrayContaining(['seat_plain', 'emo_laugh']));
+    expect(me.look).toEqual({ seat: 'seat_plain', name: 'name_plain', badge: 'badge_none', hit: 'hit_none' });
+    expect(me.offer).toMatchObject({ id: 'offer_starter', units: 6000 });
+    me = await ok('POST', '/store/buy', token, { id: 'seat_rainbow' });
+    expect(me.units).toBe(500);
+    me = await ok('POST', '/store/use', token, { id: 'seat_rainbow' });
+    expect(me.look.seat).toBe('seat_rainbow');
+    expect((await call('POST', '/store/use', token, { id: 'badge_fire' })).body.error).toBe('notOwned');
+    expect((await call('POST', '/store/use', token, { id: 'emo_laugh' })).body.error).toBe('badItem');
+    expect((await call('POST', '/store/buy', token, { id: 'badge_crown' })).body.error).toBe('vipOnly');
+    // a booster is paid in stars, is not kept, and adds up
+    expect((await call('POST', '/store/buy', token, { id: 'boost_3h' })).body.error).toBe('noStars');
+    await admin(`/users/${me.no}/credit`, { amount: 100, currency: 'stars' });
+    me = await ok('POST', '/store/buy', token, { id: 'boost_3h' });
+    me = await ok('POST', '/store/buy', token, { id: 'boost_3h' });
+    expect(me.stars).toBe(60);
+    expect(me.boostUntil).toBeGreaterThan(Date.now() + 5.9 * 3600000);
+    expect(me.owned).not.toContain('boost_3h');
+  });
+
+  it('sells the welcome offer once', async () => {
+    const { token } = await guest('عرض');
+    const r = await ok('POST', '/purchases', token, { platform: 'test', productId: 'offer_starter', token: 'offer-1' });
+    expect(r).toMatchObject({ added: 6000, already: false });
+    expect(r.me.offer).toBeNull();
+    expect(r.me.boostUntil).toBeGreaterThan(Date.now() + 11 * 3600000);
+    expect(r.me.owned).toContain('emo_love');
+    expect((await call('POST', '/purchases', token, { platform: 'test', productId: 'offer_starter', token: 'offer-2' })).body.error).toBe('offerGone');
+  });
+
   it('credits a purchase once (test store), and refuses unknown products', async () => {
     const { token } = await guest('مشتري');
     expect((await call('POST', '/purchases', token, { platform: 'test', productId: 'nope', token: 'x' })).body.error).toBe('badProduct');

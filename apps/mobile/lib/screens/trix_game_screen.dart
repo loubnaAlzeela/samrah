@@ -169,6 +169,7 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
                 from: _throwFrom(slotOf(p.seat), _avatarCenter),
                 to: _trickCenter[slotOf(p.seat)]!,
                 highlight: winnerSeat == p.seat,
+                hit: lookOf(v.seats, p.seat)?.hitStyle,
                 collectTo: winnerSeat == null ? null : _throwFrom(slotOf(winnerSeat), _avatarCenter),
               ),
 
@@ -204,8 +205,8 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
               ),
             ),
           ),
-          Positioned(left: 64 - _avatarSize / 2, top: 708 - _avatarSize / 2, child: SeatAvatar(name: name(me), size: _avatarSize, turn: myTurn && acting && !meAuto, frac: frac)),
-          Positioned(left: 64 - 45, top: 742, child: NamePill(text: name(me), width: 90, highlight: true)),
+          Positioned(left: 64 - _avatarSize / 2, top: 708 - _avatarSize / 2, child: SeatAvatar(name: name(me), look: lookOf(v.seats, me), size: _avatarSize, turn: myTurn && acting && !meAuto, frac: frac)),
+          Positioned(left: 64 - 45, top: 742, child: NamePill(text: name(me), look: lookOf(v.seats, me), width: 90, highlight: true)),
           if (g.kingdomOwner == me) const Positioned(left: 92, top: 680, child: CrownMark()),
           Positioned(left: 111, top: 676, child: _iconBtn(Icons.chat_bubble_outline, 'الدردشة', () => openTableChat(context, widget.conn, v))),
           Positioned(left: 111, top: 724, child: _iconBtn(Icons.card_giftcard, 'الهدايا', () => openGiftSheet(context, widget.conn, v))),
@@ -272,9 +273,9 @@ class _TrixGameScreenState extends State<TrixGameScreen> with TurnClock {
       Positioned(
         left: c.dx - _avatarSize / 2,
         top: c.dy - _avatarSize / 2,
-        child: SeatAvatar(name: name(s), size: _avatarSize, turn: isTurn, frac: frac, bot: seat?.bot ?? false),
+        child: SeatAvatar(name: name(s), look: lookOf(v.seats, s), size: _avatarSize, turn: isTurn, frac: frac, bot: seat?.bot ?? false),
       ),
-      Positioned(left: c.dx - 42, top: c.dy + 27, child: NamePill(text: label)),
+      Positioned(left: c.dx - 42, top: c.dy + 27, child: NamePill(text: label, look: lookOf(v.seats, s))),
       Positioned(
         left: c.dx + countDx - 55,
         width: 110,

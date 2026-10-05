@@ -21,10 +21,13 @@ import '../models/room_view.dart';
 
 /// A table chat message: the seat that sent it and the text (the server filters and rate-limits it).
 class TableChat {
-  TableChat(this.seat, this.text, this.at);
+  TableChat(this.seat, this.text, this.at, {this.emote});
   final int seat;
   final String text;
   final DateTime at;
+
+  /// A store emote's id ([text] is its character): shown large, without a bubble.
+  final String? emote;
 }
 
 /// A gift sent across the table.
@@ -89,7 +92,7 @@ class RoomConnection {
     room.onMessage('error').listen((m) => _errorCtrl.add((m as Map)['error']?.toString() ?? 'unknown'));
     room.onMessage('chat').listen((m) {
       final j = m as Map;
-      final c = TableChat((j['seat'] as num).toInt(), j['text'] as String, DateTime.fromMillisecondsSinceEpoch((j['at'] as num).toInt()));
+      final c = TableChat((j['seat'] as num).toInt(), j['text'] as String, DateTime.fromMillisecondsSinceEpoch((j['at'] as num).toInt()), emote: j['emote'] as String?);
       chatLog.add(c);
       if (chatLog.length > 100) chatLog.removeAt(0);
       _chatCtrl.add(c);
