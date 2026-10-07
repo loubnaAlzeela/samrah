@@ -40,3 +40,9 @@
    - التطبيق: حزمة `sign_in_with_apple`، دالة `continueWithApple`، زر في شاشة الدخول والإعدادات (iPhone فقط)، ونص خطأ `appleTaken`.
    - iOS: ملف `Runner.entitlements` (Sign in with Apple) مضاف إلى مشروع Xcode.
    - المطلوب من المستخدمة: تفعيل Sign in with Apple للـ App ID `com.samrah.app` في حساب Apple Developer، ثم البناء على Mac.
+
+8. **طبقة PostgreSQL** (تمهيداً للانتقال إلى AWS)
+   - `apps/server/src/data/db.ts`: إذا وُجد `DATABASE_URL` تُحفظ البيانات في جدول `samrah_state` (صف JSONB واحد) بدل الملف، مع `DATABASE_SSL=1` لـ RDS. استيراد تلقائي لملف `samrah.json` عند أول تشغيل على قاعدة فارغة. حفظ متسلسل مع إعادة محاولة عند الفشل، وانتظار الحفظ الأخير عند الإيقاف (SIGTERM).
+   - بدون `DATABASE_URL` يعمل الخادم كما كان تماماً (ملف أو ذاكرة).
+   - اختبار: `test/db.test.ts` (يعمل عند ضبط `TEST_DATABASE_URL`)، وجرّبته على PostgreSQL 18 حقيقي، وتحققت يدوياً أن حساباً بقي بعد إيقاف الخادم وتشغيله. اختبارات الخادم كلها تمر.
+   - ملاحظة: يُكتب المستند كاملاً عند كل حفظ، وهذا يكفي لآلاف اللاعبين. والتحول إلى جداول منفصلة مؤجَّل.

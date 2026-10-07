@@ -8,8 +8,8 @@ import { db } from './data/db.ts';
 import { setMatchRoomFactory, tickCompetitions } from './competitions.ts';
 
 /** Build and start the game server (used by index.ts and by the server tests). */
-export async function startGameServer(port: number, opts: { dataDir?: string } = {}): Promise<Server> {
-  db.open(opts.dataDir);
+export async function startGameServer(port: number, opts: { dataDir?: string; databaseUrl?: string } = {}): Promise<Server> {
+  await db.open(opts.dataDir, opts.databaseUrl);
   const server = new Server({
     transport: new WebSocketTransport({ pingInterval: 5000, pingMaxRetries: 3 }),
     greet: false,
@@ -37,21 +37,18 @@ export async function startGameServer(port: number, opts: { dataDir?: string } =
     return room.roomId;
   });
   const tick = setInterval(() => void tickCompetitions().catch((e) => console.error('[competitions]', e)), 3000);
-  const flush = () => {
+  const flush = async () => {
     clearInterval(tick);
-    db.flush();
+    await db.flush().catch((e) => console.error('[db] final save failed', e));
   };
-  process.once('SIGTERM', () => {
-    flush();
-    process.exit(0);
-  });
-  process.once('SIGINT', () => {
-    flush();
-    process.exit(0);
-  });
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(signal, () => {
+      void flush().then(() => process.exit(0));
+    });
+  }
   const shutdown = server.gracefullyShutdown.bind(server);
   server.gracefullyShutdown = async (...args: Parameters<typeof shutdown>) => {
-    flush();
+    await flush();
     return shutdown(...args);
   };
   return server;
