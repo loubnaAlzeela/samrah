@@ -228,6 +228,7 @@ export interface User {
   passwordHash: string | null;
   phone: string | null;
   googleId: string | null;
+  appleId: string | null;
   units: number;
   stars: number;
   vipUntil: number | null;
@@ -304,6 +305,7 @@ export function createGuest(nameArg: unknown, country?: unknown): { user: User; 
     passwordHash: null,
     phone: null,
     googleId: null,
+    appleId: null,
     units: 0,
     stars: 0,
     vipUntil: null,
@@ -411,6 +413,7 @@ export function deleteAccount(u: User) {
   if (u.email) delete d.emails[u.email];
   if (u.phone) delete d.phones[u.phone];
   if (u.googleId) delete d.google[u.googleId];
+  if (u.appleId) delete d.apple[u.appleId];
   d.messages = d.messages.filter((m) => m.from !== u.id && m.to !== u.id);
   d.notifications = d.notifications.filter((n) => n.userId !== u.id);
   for (const other of Object.values(d.users)) other.blocked = other.blocked.filter((b) => b !== u.id);
@@ -688,6 +691,7 @@ export function meView(u: User) {
     hasPassword: !!u.passwordHash,
     phone: u.phone,
     google: !!u.googleId,
+    apple: !!u.appleId,
     units: u.units,
     stars: u.stars,
     vip: isVip(u),

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { generateKeyPairSync, sign } from 'node:crypto';
 import { TestPlayer, sleep, waitFor } from './helpers.ts';
 
 // short timings and the admin key (must be set before the server modules load)
@@ -69,6 +70,32 @@ describe('accounts', () => {
     expect(again.body.error).toBe('renameTooSoon');
     const me = await ok('GET', '/me', token);
     expect(me).toMatchObject({ country: 'SA', settings: { showOnline: false, notify: { gifts: false, messages: true } } });
+  });
+
+  it('signs in with Apple: a signed identity token makes (and then finds) the account, a forged one is refused', async () => {
+    const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'test-key' };
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: unknown, init?: unknown) =>
+      String(url) === 'https://appleid.apple.com/auth/keys' ? Response.json({ keys: [jwk] }) : realFetch(url as string, init as RequestInit)) as typeof fetch;
+    try {
+      const enc = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+      const token = (claims: object, key = privateKey) => {
+        const body = `${enc({ alg: 'RS256', kid: 'test-key' })}.${enc(claims)}`;
+        return `${body}.${sign('RSA-SHA256', Buffer.from(body), key).toString('base64url')}`;
+      };
+      const good = { iss: 'https://appleid.apple.com', aud: 'com.samrah.app', sub: 'apple-user-1', exp: Math.floor(Date.now() / 1000) + 600 };
+      const first = await ok('POST', '/auth/apple', undefined, { idToken: token(good), name: 'تفاحة' });
+      expect(first.me.apple).toBe(true);
+      const again = await ok('POST', '/auth/apple', undefined, { idToken: token(good) });
+      expect(again.me.id).toBe(first.me.id);
+      const other = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey;
+      for (const bad of [token(good, other), token({ ...good, aud: 'com.other.app' }), token({ ...good, exp: 1 }), 'nonsense']) {
+        expect((await call('POST', '/auth/apple', undefined, { idToken: bad })).body.error).toBe('badToken');
+      }
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 
   it('links an email + password and signs in with it on another phone', async () => {

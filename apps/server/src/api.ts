@@ -10,7 +10,7 @@ import * as C from './competitions.ts';
 import { GIFTS } from './gifts.ts';
 import { paymentsStatus, verifyPurchase } from './payments.ts';
 import { pushReady } from './push.ts';
-import { googleReady, phoneReady, sendPhoneCode, signInWithGoogle, verifyPhoneCode } from './auth-providers.ts';
+import { appleReady, googleReady, phoneReady, sendPhoneCode, signInWithApple, signInWithGoogle, verifyPhoneCode } from './auth-providers.ts';
 import { db } from './data/db.ts';
 import { ApiError, fail } from './util.ts';
 import { adminRouter } from './admin.ts';
@@ -68,7 +68,7 @@ export function apiRouter(): Router {
       payments: (({ android, ios, test }) => ({ android, ios, test }))(paymentsStatus()),
       products: paymentsStatus().products,
       push: pushReady(),
-      auth: { phone: phoneReady(), google: googleReady() },
+      auth: { phone: phoneReady(), google: googleReady(), apple: appleReady() },
       reportReasons: S.REPORT_REASONS,
     })),
   );
@@ -108,6 +108,14 @@ export function apiRouter(): Router {
     '/auth/google',
     route(async (req) => {
       const out = await signInWithGoogle(maybeMe(req), req.body?.idToken, req.body?.name);
+      return { token: out.token, linked: out.linked, me: A.meView(out.user) };
+    }),
+  );
+
+  r.post(
+    '/auth/apple',
+    route(async (req) => {
+      const out = await signInWithApple(maybeMe(req), req.body?.idToken, req.body?.name);
       return { token: out.token, linked: out.linked, me: A.meView(out.user) };
     }),
   );

@@ -48,6 +48,8 @@ export interface DbShape {
   phones: Record<string, string>;
   /** Google account id -> user id */
   google: Record<string, string>;
+  /** Apple account id (the token's `sub`) -> user id */
+  apple: Record<string, string>;
   ledger: LedgerEntry[];
   purchases: Record<string, Purchase>;
   messages: DirectMessage[];
@@ -68,6 +70,7 @@ function empty(): DbShape {
     emails: {},
     phones: {},
     google: {},
+    apple: {},
     ledger: [],
     purchases: {},
     messages: [],

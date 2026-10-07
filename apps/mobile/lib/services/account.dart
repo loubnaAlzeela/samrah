@@ -21,6 +21,7 @@ class Me {
   bool get hasPassword => raw['hasPassword'] == true;
   String? get phone => raw['phone'] as String?;
   bool get google => raw['google'] == true;
+  bool get apple => raw['apple'] == true;
   int get units => (raw['units'] as num? ?? 0).toInt();
   int get stars => (raw['stars'] as num? ?? 0).toInt();
   bool get vip => raw['vip'] == true;

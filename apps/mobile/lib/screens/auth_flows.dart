@@ -1,9 +1,13 @@
 // The ways into an account, shared by the sign-in screen and the settings: email + password, a phone number
 // with an SMS code, and Google. Signed in, each one links the method to the current account; signed out, it
 // signs in to the account the method belongs to.
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../services/account.dart';
 import '../services/api.dart';
@@ -13,6 +17,28 @@ import '../theme/samrah_theme.dart';
 import 'profile_screen.dart' show say;
 
 bool _googleReady = false;
+
+/// Sign in with Apple is offered on iPhone only.
+bool get appleSignInAvailable => !kIsWeb && Platform.isIOS;
+
+/// Apple sign-in: answers null when done, else the reason. Apple gives the name only the first time, so it is sent along.
+Future<String?> continueWithApple() async {
+  try {
+    final credential = await SignInWithApple.getAppleIDCredential(scopes: [AppleIDAuthorizationScopes.fullName]);
+    final idToken = credential.identityToken;
+    if (idToken == null) return errorText('badToken');
+    final full = [credential.givenName, credential.familyName].whereType<String>().join(' ').trim();
+    final r = await Api.instance.post('/auth/apple', {'idToken': idToken, if (full.length >= 2) 'name': full}) as Map;
+    await Account.instance.applyProviderResult(r);
+    return null;
+  } on ApiError catch (e) {
+    return errorText(e.code);
+  } on SignInWithAppleAuthorizationException catch (e) {
+    return e.code == AuthorizationErrorCode.canceled ? null : 'تعذّر الدخول بحساب Apple';
+  } catch (_) {
+    return 'تعذّر الدخول بحساب Apple';
+  }
+}
 
 /// Google sign-in: answers null when done, else the reason.
 Future<String?> continueWithGoogle({String? name}) async {

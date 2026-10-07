@@ -75,6 +75,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             final err = await continueWithGoogle();
                             if (context.mounted) say(context, err ?? 'رُبط حسابك بـ Google');
                           }),
+                          if (appleSignInAvailable)
+                            _accountButton(Icons.apple, me.apple ? 'مربوط بحساب Apple' : 'تسجيل الدخول باستخدام Apple', Colors.black, linked: me.apple, onTap: () async {
+                              final err = await continueWithApple();
+                              if (context.mounted) say(context, err ?? 'رُبط حسابك بـ Apple');
+                            }),
                           _accountButton(Icons.phone_rounded, me.phone != null ? 'الهاتف: ${me.phone}' : 'رقم الهاتف', const Color(0xFFD9A21E), linked: me.phone != null, onTap: () async {
                             if (await showPhoneSheet(context) && context.mounted) say(context, 'رُبط رقم هاتفك بحسابك');
                           }),
@@ -145,7 +150,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _otherAccount() async {
     final me = Account.instance.me!;
-    final linked = me.email != null || me.phone != null || me.google;
+    final linked = me.email != null || me.phone != null || me.google || me.apple;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -588,7 +593,7 @@ class AccountSettingsScreen extends StatelessWidget {
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: () async {
-              final linked = me.email != null || me.phone != null || me.google;
+              final linked = me.email != null || me.phone != null || me.google || me.apple;
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(

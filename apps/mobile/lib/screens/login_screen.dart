@@ -102,6 +102,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 _provider(Icons.phone_rounded, 'رقم الهاتف', const Color(0xFFD9A21E), () async {
                   if (await showPhoneSheet(context)) _home();
                 }),
+                if (appleSignInAvailable)
+                  _provider(Icons.apple, 'حساب Apple', Colors.black, () async {
+                    final err = await continueWithApple();
+                    if (err != null) {
+                      setState(() => _error = err);
+                    } else if (Account.instance.signedIn) {
+                      _home();
+                    }
+                  }),
                 if (kGoogleServerClientId.isNotEmpty)
                   _provider(Icons.g_mobiledata_rounded, 'حساب Google', SamrahColors.surface2, () async {
                     final err = await continueWithGoogle();

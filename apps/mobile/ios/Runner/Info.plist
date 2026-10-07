@@ -41,6 +41,21 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>GIDClientID</key>
+	<string>1003483154426-d1a3cm28kjg095liq5578glkrpt2qfj7.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>1003483154426-hjtilfmlmefn8q8e888evmvtald1bg6p.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.1003483154426-d1a3cm28kjg095liq5578glkrpt2qfj7</string>
+			</array>
+		</dict>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
