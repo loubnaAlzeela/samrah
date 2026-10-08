@@ -6,7 +6,7 @@
 const String kGameServer = String.fromEnvironment('GAME_SERVER', defaultValue: 'wss://samrah.ms-scan.com');
 
 /// Google sign-in: the OAuth "web" client id the server checks the ID token against (GOOGLE_CLIENT_IDS there).
-const String kGoogleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+const String kGoogleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID', defaultValue: '1003483154426-hjtilfmlmefn8q8e888evmvtald1bg6p.apps.googleusercontent.com');
 
 /// The app's version as shown in the settings.
 const String kAppVersion = '1.1.0';

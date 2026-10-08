@@ -105,10 +105,12 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> with SingleTick
     final g = _game;
     try {
       final l = await _comps.list(g.variant);
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _lists[g.variant] = l;
         _error = null;
       });
+      }
     } catch (e) {
       if (mounted) setState(() => _error = 'تعذّر تحميل المسابقات');
     }

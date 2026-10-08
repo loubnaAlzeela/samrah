@@ -1,7 +1,6 @@
 // A 187 room's `state.game` is a B187View: RoomView must route it to `b187`
 // by variant, keep 5-seat lists intact, and survive msgpack int/double.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/models/b187_view.dart';
 import 'package:mobile/models/game_card.dart';
 import 'package:mobile/models/room_view.dart';
 
@@ -69,7 +68,7 @@ void main() {
 
   test('187 hand order: ♥ ♦ ♠ ♣, 2 > A > K > 10 > Q > J, trump first once named', () {
     final hand = ['C6', 'S10', 'H14', 'D2', 'H2', 'H10', 'H13', 'S12', 'H11'];
-    final sort = (String? t) => sortForDisplay(hand, t, power: b187Power, suitOrder: b187SuitOrder(t));
+    List<String> sort(String? t) => sortForDisplay(hand, t, power: b187Power, suitOrder: b187SuitOrder(t));
     expect(sort(null), ['H2', 'H14', 'H13', 'H10', 'H11', 'D2', 'S10', 'S12', 'C6']);
     expect(sort('S'), ['S10', 'S12', 'H2', 'H14', 'H13', 'H10', 'H11', 'D2', 'C6']);
   });

@@ -51,7 +51,7 @@ class RadialModeWheel extends StatefulWidget {
 
 /// Sizes for one outer radius; everything is measured from the baseline centre.
 class _Geo {
-  _Geo(this.w, this.outer) : inner = outer * 0.55 {
+  _Geo(this.w, this.outer) : inner = outer * 0.65 {
     buttonR = math.min(inner - 30, 56);
     // the button sits in the hollow, lifted so most of it is above the baseline
     buttonLift = buttonR * 0.55;

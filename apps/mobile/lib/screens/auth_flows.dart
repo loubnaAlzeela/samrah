@@ -42,10 +42,9 @@ Future<String?> continueWithApple() async {
 
 /// Google sign-in: answers null when done, else the reason.
 Future<String?> continueWithGoogle({String? name}) async {
-  if (kGoogleServerClientId.isEmpty) return errorText('googleOff');
   try {
     if (!_googleReady) {
-      await GoogleSignIn.instance.initialize(serverClientId: kGoogleServerClientId);
+      await GoogleSignIn.instance.initialize(serverClientId: kGoogleServerClientId.isEmpty ? null : kGoogleServerClientId);
       _googleReady = true;
     }
     final account = await GoogleSignIn.instance.authenticate();

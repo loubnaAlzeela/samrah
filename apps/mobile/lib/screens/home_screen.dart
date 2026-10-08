@@ -14,7 +14,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/samrah_theme.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/radial_mode_wheel.dart';
-import 'challenges_screen.dart';
 import 'clubs_screen.dart';
 import 'competitions_screen.dart';
 import 'games_screen.dart';
@@ -135,77 +134,56 @@ class _HomeScreenState extends State<HomeScreen> {
       _push(const ClubsScreen());
       return;
     }
-    if (i == 4) _push(const ChallengesScreen());
+    if (i == 4) _push(CompetitionsScreen(variant: _variant));
   }
 
   Widget _header(String letter) {
+    Widget icon(IconData i, String tip, int badge, VoidCallback onTap) => IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+          tooltip: tip,
+          onPressed: onTap,
+          icon: Badge(
+            isLabelVisible: badge > 0,
+            label: Text(badge > 99 ? '99+' : '$badge'),
+            backgroundColor: SamrahColors.suitRed,
+            child: Icon(i, color: SamrahColors.text, size: 24),
+          ),
+        );
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // right edge: the wallets, one above the other (same width)
-          ListenableBuilder(
-            listenable: Store.instance,
-            builder: (_, _) => IntrinsicWidth(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _wallet(icon: const StarIcon(size: 16), value: Store.instance.stars, stars: true),
-                const SizedBox(height: 8),
-                _wallet(icon: const UnitIcon(size: 16), value: Store.instance.units),
-              ],
-            ),
+          Row(
+            children: [
+              // right edge: the two wallets side by side
+              ListenableBuilder(
+                listenable: Store.instance,
+                builder: (_, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _wallet(icon: const StarIcon(size: 16), value: Store.instance.stars, stars: true),
+                    const SizedBox(width: 8),
+                    _wallet(icon: const UnitIcon(size: 16), value: Store.instance.units),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              // left edge: messages and notifications
+              icon(Icons.chat_bubble_outline, 'الرسائل', Account.instance.unreadMessages, () => _push(const MessagesScreen())),
+              icon(Icons.notifications_none, 'التنبيهات', Account.instance.unreadNotifications, () => _push(const NotificationsScreen())),
+            ],
           ),
-          ),
-          const SizedBox(width: 10),
-          // the player, centred and given the room
-          Expanded(child: _profileCapsule(letter)),
-          const SizedBox(width: 10),
-          // left edge: messages and notifications
-          _iconColumn([
-            (Icons.chat_bubble_outline, 'الرسائل', Account.instance.unreadMessages, () => _push(const MessagesScreen())),
-            (Icons.notifications_none, 'التنبيهات', Account.instance.unreadNotifications, () => _push(const NotificationsScreen())),
-          ]),
+          const SizedBox(height: 12),
+          // the player, on a row of their own
+          _profileCapsule(letter),
         ],
       ),
     );
   }
 
   void _push(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen)).then((_) => Account.instance.refresh());
-
-  /// Icons 36 apart, each with a 44x44 touch area (the areas reach 4px past their slot).
-  Widget _iconColumn(List<(IconData, String, int, VoidCallback)> items) {
-    return SizedBox(
-      width: 44,
-      height: 36.0 * items.length,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (final (i, (icon, tooltip, badge, onTap)) in items.indexed)
-            Positioned(
-              top: 36.0 * i - 4,
-              left: 0,
-              width: 44,
-              height: 44,
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-                tooltip: tooltip,
-                onPressed: onTap,
-                icon: Badge(
-                  isLabelVisible: badge > 0,
-                  label: Text(badge > 99 ? '99+' : '$badge'),
-                  backgroundColor: SamrahColors.suitRed,
-                  child: Icon(icon, color: SamrahColors.text, size: 24),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   Widget _headerIcon(IconData icon, String tooltip, VoidCallback onTap) => SizedBox(
         width: 38,
@@ -407,18 +385,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  static const _showCompetitionsOnWheel = false;
+
   /// Every home action on one wheel: the three ways to play, then rules and leaderboard.
   Widget _wheel() {
     return RadialModeWheel(
       options: [
         RadialOption(label: 'لعبة ودية', icon: Icons.play_arrow_rounded, action: 'العب', onSelected: () => _openRoomFlow(auto: true)),
         RadialOption(label: 'إنشاء لعبة', icon: Icons.add_rounded, action: 'أنشئ', onSelected: _openNewGameSheet),
-        RadialOption(
-          label: 'المسابقات',
-          icon: Icons.military_tech_outlined,
-          action: 'ادخل',
-          onSelected: () => _push(CompetitionsScreen(variant: _variant)),
-        ),
+        // hidden for now; set _showCompetitionsOnWheel to bring it back
+        if (_showCompetitionsOnWheel)
+          RadialOption(
+            label: 'المسابقات',
+            icon: Icons.military_tech_outlined,
+            action: 'ادخل',
+            onSelected: () => _push(CompetitionsScreen(variant: _variant)),
+          ),
         RadialOption(label: 'الألعاب العامة', icon: Icons.public, action: 'تصفّح', onSelected: () => _push(TablesScreen(variant: _variant))),
         RadialOption(
           label: 'القوانين',
