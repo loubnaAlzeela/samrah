@@ -69,8 +69,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
                         child: Column(children: [
-                          _accountButton(Icons.mail_outline, me.email != null ? 'البريد: ${me.email}' : 'البريد الإلكتروني', const Color(0xFF2E9E4F),
-                              linked: me.email != null, onTap: () => showEmailSheet(context, link: true)),
                           _accountButton(Icons.g_mobiledata_rounded, me.google ? 'مربوط بحساب Google' : 'تسجيل الدخول باستخدام Google', SamrahColors.surface2, outlined: true, linked: me.google, onTap: () async {
                             final err = await continueWithGoogle();
                             if (context.mounted) say(context, err ?? 'رُبط حسابك بـ Google');
@@ -80,9 +78,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               final err = await continueWithApple();
                               if (context.mounted) say(context, err ?? 'رُبط حسابك بـ Apple');
                             }),
-                          _accountButton(Icons.phone_rounded, me.phone != null ? 'الهاتف: ${me.phone}' : 'رقم الهاتف', const Color(0xFFD9A21E), linked: me.phone != null, onTap: () async {
-                            if (await showPhoneSheet(context) && context.mounted) say(context, 'رُبط رقم هاتفك بحسابك');
-                          }),
                         ]),
                       ),
                       _divider(),
@@ -150,7 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _otherAccount() async {
     final me = Account.instance.me!;
-    final linked = me.email != null || me.phone != null || me.google || me.apple;
+    final linked = me.google || me.apple;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -158,8 +153,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('الدخول بحساب آخر؟'),
         content: Text(
           linked
-              ? 'ستخرج من هذا الحساب، ويمكنك العودة إليه لاحقاً بالبريد أو الهاتف أو Google.'
-              : 'حسابك الحالي غير مربوط ببريد أو هاتف أو Google: إن خرجت منه فلن تستطيع العودة إليه وستفقد رصيدك ومستواك. اربطه أولاً من الأعلى.',
+              ? 'ستخرج من هذا الحساب، ويمكنك العودة إليه لاحقاً بحساب Google أو Apple.'
+              : 'حسابك الحالي غير مربوط بحساب Google أو Apple: إن خرجت منه فلن تستطيع العودة إليه وستفقد رصيدك ومستواك. اربطه أولاً من الأعلى.',
           style: const TextStyle(color: SamrahColors.textMuted),
         ),
         actions: [
@@ -404,11 +399,8 @@ class SecurityScreen extends StatelessWidget {
         children: (context, me) => [
           _sectionTitle('الدخول'),
           _group([
-            _row('البريد وكلمة المرور', hint: me.email == null ? 'غير مربوط' : '${me.email}${me.hasPassword ? ' · كلمة المرور محفوظة' : ''}', trailing: const Icon(Icons.chevron_left, color: SamrahColors.icon), onTap: () => showEmailSheet(context, link: true)),
-            _divider(),
-            _row('رقم الهاتف', hint: me.phone ?? 'غير مربوط', trailing: const Icon(Icons.chevron_left, color: SamrahColors.icon), onTap: () => showPhoneSheet(context)),
-            _divider(),
             _row('حساب Google', hint: me.google ? 'مربوط' : 'غير مربوط'),
+            if (appleSignInAvailable) ...[_divider(), _row('حساب Apple', hint: me.apple ? 'مربوط' : 'غير مربوط')],
           ]),
           _sectionTitle('الأجهزة'),
           _group([
@@ -475,7 +467,7 @@ class PrivacySettingsScreen extends StatelessWidget {
             _toggle('الظهور في الترتيب', me.setting('showInRanking'), (v) => _apply(context, () => Account.instance.updateSettings({'showInRanking': v}))),
           ]),
           const SizedBox(height: 16),
-          const Text('لا يرى أحد رصيدك أو بريدك أو هاتفك. يرى الآخرون اسمك ورقمك ومستواك وإحصاءات لعبك وناديك فقط.', style: TextStyle(color: SamrahColors.textMuted, fontSize: 12, height: 1.6)),
+          const Text('لا يرى أحد رصيدك أو بريد حسابك. يرى الآخرون اسمك ورقمك ومستواك وإحصاءات لعبك وناديك فقط.', style: TextStyle(color: SamrahColors.textMuted, fontSize: 12, height: 1.6)),
         ],
       );
 }
@@ -484,7 +476,7 @@ class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
 
   static const _faq = [
-    ('كيف أحفظ حسابي ورصيدي؟', 'اربط بريدك أو هاتفك أو حساب Google من الإعدادات ← الحسابات، فتستطيع الدخول إلى الحساب نفسه من أي هاتف.'),
+    ('كيف أحفظ حسابي ورصيدي؟', 'حسابك مرتبط بحساب Google أو Apple الذي دخلت به. سجّل الدخول به من أي هاتف تجد حسابك ورصيدك. ويمكنك ربط الثاني من الإعدادات ← الحسابات.'),
     ('كيف أرفع مستواي؟', 'كل جولة تكملها تمنحك 20 نقطة خبرة، والفوز يمنحك 30 نقطة إضافية. يزيد المطلوب لكل مستوى 100 نقطة عن الذي قبله.'),
     ('ما الفرق بين الوحدات والنجوم؟', 'الوحدات لشراء ظهر الورق والطاولات والهدايا ورسوم المسابقات والأندية، وتأخذ منها هدية يومية. النجوم تكسبها من التحديات أو تشتريها، وبها تشترك في العضوية الذهبية.'),
     ('اشتريت ولم تصلني العملات', 'تُضاف فور تأكيد المتجر. إن تأخرت أغلق التطبيق وافتحه ليُعاد التحقق تلقائياً، وإن لم تصل فراسلنا من «شاركنا رأيك» مع وقت الشراء.'),
@@ -593,14 +585,14 @@ class AccountSettingsScreen extends StatelessWidget {
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: () async {
-              final linked = me.email != null || me.phone != null || me.google || me.apple;
+              final linked = me.google || me.apple;
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
                   backgroundColor: SamrahColors.surface,
                   title: const Text('تسجيل الخروج؟'),
                   content: Text(
-                    linked ? 'تعود إلى حسابك متى شئت بالبريد أو الهاتف أو Google.' : 'حسابك غير مربوط ببريد أو هاتف أو Google: لن تستطيع العودة إليه بعد الخروج.',
+                    linked ? 'تعود إلى حسابك متى شئت بحساب Google أو Apple.' : 'حسابك غير مربوط بحساب Google أو Apple: لن تستطيع العودة إليه بعد الخروج.',
                     style: const TextStyle(color: SamrahColors.textMuted),
                   ),
                   actions: [

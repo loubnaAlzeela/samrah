@@ -17,9 +17,6 @@ class Me {
   int get no => (raw['no'] as num).toInt();
   String get name => raw['name'] as String? ?? 'لاعب';
   String? get country => raw['country'] as String?;
-  String? get email => raw['email'] as String?;
-  bool get hasPassword => raw['hasPassword'] == true;
-  String? get phone => raw['phone'] as String?;
   bool get google => raw['google'] == true;
   bool get apple => raw['apple'] == true;
   int get units => (raw['units'] as num? ?? 0).toInt();
@@ -146,17 +143,7 @@ class Account extends ChangeNotifier {
 
   // ── signing in ────────────────────────────────────────────────────────────
 
-  Future<void> signInAsGuest(String name) async {
-    final r = await Api.instance.post('/auth/guest', {'name': name}) as Map;
-    _setSession(r['token'] as String, r['me']);
-  }
-
-  Future<void> signInWithEmail(String email, String password) async {
-    final r = await Api.instance.post('/auth/login', {'email': email.trim(), 'password': password}) as Map;
-    _setSession(r['token'] as String, r['me']);
-  }
-
-  /// Phone or Google: links to this account when signed in, or signs in (a new account if never linked).
+  /// Google or Apple: links to this account when signed in, or signs in (a new account if never signed in before).
   Future<void> applyProviderResult(Map r) async {
     final t = r['token'] as String?;
     if (t != null) {
@@ -185,9 +172,6 @@ class Account extends ChangeNotifier {
   Future<void> update(Map<String, Object?> patch) async => apply(await Api.instance.patch('/me', patch));
 
   Future<void> updateSettings(Map<String, Object?> settings) => update({'settings': settings});
-
-  Future<void> setEmail(String email, String password, {String? current}) async =>
-      apply(await Api.instance.post('/me/email', {'email': email.trim(), 'password': password, 'current': ?current}));
 
   Future<void> signOutOthers() async => apply(await Api.instance.post('/me/signout-others'));
 

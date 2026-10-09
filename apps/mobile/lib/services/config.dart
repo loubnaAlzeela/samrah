@@ -16,4 +16,4 @@ bool get kPushConfigured => kFirebaseApiKey.isNotEmpty && kFirebaseAppId.isNotEm
 const String kGoogleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID', defaultValue: '1003483154426-hjtilfmlmefn8q8e888evmvtald1bg6p.apps.googleusercontent.com');
 
 /// The app's version as shown in the settings.
-const String kAppVersion = '1.1.0';
+const String kAppVersion = '1.2.0';
