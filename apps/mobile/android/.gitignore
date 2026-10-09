@@ -12,3 +12,7 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Firebase / Google service-account keys: secrets, belong on the server only
+*-firebase-adminsdk-*.json
+google-services.json

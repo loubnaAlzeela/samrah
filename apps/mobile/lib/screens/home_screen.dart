@@ -29,6 +29,7 @@ import 'store_screen.dart';
 import '../services/account.dart';
 import '../services/challenges.dart';
 import '../services/clubs.dart';
+import '../services/push.dart';
 import '../services/store.dart';
 import '../widgets/motion.dart';
 
@@ -73,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Account.instance.start();
     unawaited(Challenges.instance.load());
     unawaited(Clubs.instance.loadMine());
+    unawaited(Push.instance.start());
   }
 
   String get _name => Account.instance.me?.name ?? widget.playerName;
@@ -112,7 +114,6 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_, _) => BottomNav(
           index: _navIndex,
           onTap: _onNav,
-          challengeBadge: Challenges.instance.claimableCount,
           clubsLocked: Clubs.instance.loaded && !Clubs.instance.unlocked,
         ),
       ),

@@ -64,7 +64,7 @@ class BottomNav extends StatelessWidget {
               Icon(icon, color: color, size: 24),
               if (i == 3 && clubsLocked)
                 const Positioned(right: -2, top: -2, child: Icon(Icons.lock, size: 12, color: SamrahColors.textMuted)),
-              if (false && i == 4 && challengeBadge > 0)
+              if (i == 4 && challengeBadge > 0)
                 Positioned(
                   right: -6,
                   top: -6,
