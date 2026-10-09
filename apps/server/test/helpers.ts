@@ -3,6 +3,17 @@ import type { RoomView } from '@lamma/rules';
 
 type SdkRoom = Awaited<ReturnType<Client['joinById']>>;
 
+let nextTestAccount = 1;
+
+/** A signed-in account made straight on the server (the tests run it in-process): there is no guest sign-up any more.
+ *  Loaded when called, because the tests set the server's environment before its modules load. */
+export async function testAccount(name: string, kind: 'google' | 'apple' = 'google') {
+  const { createAccount } = await import('../src/accounts.ts');
+  const made = createAccount(name, kind, `test-${kind}-${nextTestAccount++}`);
+  made.user.name = name; // the rooms' tests use one-letter names, which a real sign-in would not allow
+  return made;
+}
+
 /** A test player: a real WebSocket client that records every view, error and chat message it receives. */
 export class TestPlayer {
   room!: SdkRoom;
@@ -14,6 +25,12 @@ export class TestPlayer {
   messages: { type: string; payload: unknown }[] = [];
 
   constructor(public endpoint: string, public name: string) {}
+
+  /** the account token, made on first use */
+  private authToken: string | null = null;
+  async auth(): Promise<string> {
+    return (this.authToken ??= (await testAccount(this.name)).token);
+  }
 
   attachForTest(r: SdkRoom) { this.attach(r); }
   private attach(r: SdkRoom) {
@@ -30,13 +47,13 @@ export class TestPlayer {
   }
 
   async create(variant: string, settings: object = {}) {
-    this.attach(await new Client(this.endpoint).create('lamma', { variant, settings, name: this.name }));
+    this.attach(await new Client(this.endpoint).create('lamma', { variant, settings, auth: await this.auth() }));
     await waitFor(() => !!this.view, 'first view');
     return this.view!.code;
   }
 
   async join(code: string, extra: object = {}) {
-    this.attach(await new Client(this.endpoint).joinById(code, { name: this.name, ...extra }));
+    this.attach(await new Client(this.endpoint).joinById(code, { auth: await this.auth(), ...extra }));
     await waitFor(() => !!this.view, 'join view');
   }
 

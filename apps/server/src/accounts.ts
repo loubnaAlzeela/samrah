@@ -1,9 +1,9 @@
-// Players: the account (a guest on first launch; an email, phone or Google account can be linked later and used
-// to sign in on another phone), the two wallets with their ledger, what the player owns and uses from the store,
+// Players: the account (made on the first sign-in with Google or Apple, never before; either one signs in again on
+// another phone, and the other can be linked later), the two wallets with their ledger, what the player owns and uses from the store,
 // the gold membership, the daily gift, the level (from experience earned by playing), game statistics, the daily
 // and weekly challenges, settings, and the block list.
 import { db } from './data/db.ts';
-import { ApiError, checkPassword, cleanText, dayKey, fail, hashPassword, isEmail, newSecret, weekKey } from './util.ts';
+import { ApiError, cleanText, dayKey, fail, newSecret, providerHash, weekKey } from './util.ts';
 import { notify } from './social.ts';
 import { addClubPoints } from './clubs.ts';
 
@@ -224,11 +224,10 @@ export interface User {
   createdAt: number;
   lastSeen: number;
   renamedAt: number | null;
-  email: string | null;
-  passwordHash: string | null;
-  phone: string | null;
   googleId: string | null;
   appleId: string | null;
+  /** Apple's refresh token, kept only to revoke the sign-in when the account is deleted (never sent to the app) */
+  appleRefreshToken: string | null;
   units: number;
   stars: number;
   vipUntil: number | null;
@@ -289,8 +288,10 @@ export function cleanName(x: unknown): string | null {
   return n && n.length >= 2 ? n : null;
 }
 
-export function createGuest(nameArg: unknown, country?: unknown): { user: User; token: string } {
-  const name = cleanName(nameArg) ?? fail('badName');
+/** The account of a player who has just signed in with Google or Apple for the first time. The welcome balance is
+ *  given once per person: not again to one who deleted an account and signed in anew with the same Google / Apple id. */
+export function createAccount(nameArg: unknown, kind: 'google' | 'apple', providerId: string, country?: unknown): { user: User; token: string } {
+  const name = cleanName(nameArg) ?? 'لاعب';
   const d = db.data;
   const now = Date.now();
   const user: User = {
@@ -301,11 +302,9 @@ export function createGuest(nameArg: unknown, country?: unknown): { user: User; 
     createdAt: now,
     lastSeen: now,
     renamedAt: null,
-    email: null,
-    passwordHash: null,
-    phone: null,
-    googleId: null,
-    appleId: null,
+    googleId: kind === 'google' ? providerId : null,
+    appleId: kind === 'apple' ? providerId : null,
+    appleRefreshToken: null,
     units: 0,
     stars: 0,
     vipUntil: null,
@@ -327,9 +326,15 @@ export function createGuest(nameArg: unknown, country?: unknown): { user: User; 
     banned: false,
   };
   d.users[user.id] = user;
-  credit(user, 'units', ECONOMY.startUnits, 'welcome');
-  credit(user, 'stars', ECONOMY.startStars, 'welcome');
-  notify(user.id, 'system', 'أهلاً بك في سمرة', `رقمك في اللعبة ${user.no}. أضفنا إلى محفظتك ${ECONOMY.startUnits} وحدة و${ECONOMY.startStars} نجمة هدية ترحيب.`);
+  (kind === 'google' ? d.google : d.apple)[providerId] = user.id;
+  if (d.deletedProviders[providerHash(kind, providerId)]) {
+    notify(user.id, 'system', 'أهلاً بعودتك إلى سمرة', `رقمك في اللعبة ${user.no}. هدية الترحيب تُمنح مرة واحدة لكل شخص، وقد حصلت عليها من قبل.`);
+  } else {
+    credit(user, 'units', ECONOMY.startUnits, 'welcome');
+    credit(user, 'stars', ECONOMY.startStars, 'welcome');
+    notify(user.id, 'system', 'أهلاً بك في سمرة', `رقمك في اللعبة ${user.no}. أضفنا إلى محفظتك ${ECONOMY.startUnits} وحدة و${ECONOMY.startStars} نجمة هدية ترحيب.`);
+  }
+  db.touch();
   return { user, token: newSession(user) };
 }
 
@@ -371,31 +376,6 @@ export function signOut(token: string) {
   db.touch();
 }
 
-/** Sign-in on another phone: email + password. */
-export function loginWithEmail(emailArg: unknown, password: unknown): { user: User; token: string } {
-  if (!isEmail(emailArg) || typeof password !== 'string') fail('badLogin', 401);
-  const id = db.data.emails[(emailArg as string).toLowerCase()];
-  const u = id ? db.data.users[id] : undefined;
-  if (!u || !checkPassword(password as string, u.passwordHash)) fail('badLogin', 401);
-  if (u!.banned) fail('banned', 403);
-  return { user: u!, token: newSession(u!) };
-}
-
-/** Links an email and password to the account (or changes the password: the current one is then required). */
-export function setEmailPassword(u: User, emailArg: unknown, password: unknown, current: unknown) {
-  if (!isEmail(emailArg)) fail('badEmail');
-  if (typeof password !== 'string' || password.length < 8 || password.length > 100) fail('weakPassword');
-  if (u.passwordHash && !checkPassword(typeof current === 'string' ? current : '', u.passwordHash)) fail('wrongPassword', 403);
-  const email = (emailArg as string).toLowerCase();
-  const owner = db.data.emails[email];
-  if (owner && owner !== u.id) fail('emailTaken', 409);
-  if (u.email && u.email !== email) delete db.data.emails[u.email];
-  u.email = email;
-  u.passwordHash = hashPassword(password as string);
-  db.data.emails[email] = u.id;
-  db.touch();
-}
-
 /** Signs out every other phone (security). */
 export function signOutOthers(u: User, keep: string) {
   for (const [t, s] of Object.entries(db.data.sessions)) if (s.userId === u.id && t !== keep) delete db.data.sessions[t];
@@ -410,10 +390,15 @@ export function sessionCount(u: User): number {
 export function deleteAccount(u: User) {
   const d = db.data;
   for (const [t, s] of Object.entries(d.sessions)) if (s.userId === u.id) delete d.sessions[t];
-  if (u.email) delete d.emails[u.email];
-  if (u.phone) delete d.phones[u.phone];
-  if (u.googleId) delete d.google[u.googleId];
-  if (u.appleId) delete d.apple[u.appleId];
+  // only a hash of the Google / Apple id outlives the account: it tells the welcome balance was already given
+  if (u.googleId) {
+    delete d.google[u.googleId];
+    d.deletedProviders[providerHash('google', u.googleId)] = Date.now();
+  }
+  if (u.appleId) {
+    delete d.apple[u.appleId];
+    d.deletedProviders[providerHash('apple', u.appleId)] = Date.now();
+  }
   d.messages = d.messages.filter((m) => m.from !== u.id && m.to !== u.id);
   d.notifications = d.notifications.filter((n) => n.userId !== u.id);
   for (const other of Object.values(d.users)) other.blocked = other.blocked.filter((b) => b !== u.id);
@@ -687,9 +672,6 @@ export function meView(u: User) {
     name: u.name,
     country: u.country,
     renamedAt: u.renamedAt,
-    email: u.email,
-    hasPassword: !!u.passwordHash,
-    phone: u.phone,
     google: !!u.googleId,
     apple: !!u.appleId,
     units: u.units,

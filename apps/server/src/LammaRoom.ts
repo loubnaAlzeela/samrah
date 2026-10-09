@@ -58,8 +58,9 @@ const AUTO_BID_MS = num(process.env.LAMMA_AUTO_BID_MS, 1600);
 const REVEAL_PAUSE_MS = num(process.env.LAMMA_REVEAL_PAUSE_MS, 4500);
 const TRICK_PAUSE_MS = num(process.env.LAMMA_TRICK_PAUSE_MS, 1200);
 const HAND_PAUSE_MS = num(process.env.LAMMA_HAND_PAUSE_MS, 5000);
+/** a computer's level on the table */
+const BOT_LEVEL = 1;
 const EMPTY_ROOM_DISPOSE_MS = RECONNECT_SECONDS * 1000;
-const GUEST_LEVEL = 1;
 /** a competition table waits this long for its players, then the computer takes the empty seats */
 const COMP_SHOW_UP_MS = num(process.env.LAMMA_COMP_SHOWUP_MS, 3 * 60 * 1000);
 /** «العب الآن»: a quick-match room waits this long for humans, then fills with computers and starts. */
@@ -95,10 +96,10 @@ interface SeatInfo {
   bot: boolean;
   level: number;
   lastChatAt: number;
-  /** the player's account (null = a guest from an older app, or a computer) */
+  /** the player's account (null = a computer) */
   uid: string | null;
   vip: boolean;
-  /** what the player wears from the store: seat ring, name colour, badge, card-play effect (null for computers and guests) */
+  /** what the player wears from the store: seat ring, name colour, badge, card-play effect (null for computers) */
   look: Record<string, string> | null;
   lastGiftAt: number;
 }
@@ -107,13 +108,6 @@ interface Member {
   name: string;
   token: string;
   uid: string | null;
-}
-
-export function cleanName(x: unknown): string | null {
-  if (typeof x !== 'string') return null;
-  // strip control + bidi-override characters, collapse spaces, max 16 chars
-  const n = x.replace(/[\u0000-\u001f\u007f‎‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
-  return n.length > 0 ? n : null;
 }
 
 export interface CreateOptions {
@@ -275,14 +269,16 @@ export class LammaRoom extends Room {
     this.scheduleDisposeIfEmpty();
   }
 
-  onJoin(client: Client, options: { name?: unknown; token?: unknown; auth?: unknown }) {
+  onJoin(client: Client, options: { token?: unknown; auth?: unknown }) {
     const token = typeof options?.token === 'string' ? options.token : null;
     if (token && this.banned.has(token)) throw new ServerError(403, 'kicked');
     // the player's account: their real name and level, and their results counted when the game ends
     const user = userByToken(options?.auth);
+    // no account, no seat: players come in with a Google / Apple account only
+    if (!user) throw new ServerError(401, 'signedOut');
     let seatIdx = token ? this.seats.findIndex((s) => s && !s.bot && s.token === token) : -1;
     // the same account coming back from another connection (its seat token was lost) takes its seat back
-    if (seatIdx < 0 && user) seatIdx = this.seats.findIndex((s) => s && !s.bot && s.uid === user.id);
+    if (seatIdx < 0) seatIdx = this.seats.findIndex((s) => s && !s.bot && s.uid === user.id);
     if (this.competition) return this.joinCompetition(client, user, seatIdx);
 
     if (seatIdx >= 0) {
@@ -305,13 +301,12 @@ export class LammaRoom extends Room {
         this.scheduleTurn(); // the turn may be this seat's: give the human a full timer again
       }
     } else {
-      const name = user ? user.name : cleanName(options?.name);
-      if (!name) throw new ServerError(400, 'badName');
+      const name = user.name;
       // the table's lowest level (the host's own seat is exempt: it is the first member)
-      if (this.members.size > 0 && (user ? levelOf(user.xp) : GUEST_LEVEL) < this.settings.minLevel) throw new ServerError(403, 'lowLevel');
+      if (this.members.size > 0 && levelOf(user.xp) < this.settings.minLevel) throw new ServerError(403, 'lowLevel');
       if (this.status === 'waiting') {
         const tok = newToken();
-        this.members.set(client.sessionId, { name, token: tok, uid: user?.id ?? null });
+        this.members.set(client.sessionId, { name, token: tok, uid: user.id });
         // take the first empty seat automatically (the player can still move before the start)
         const free = this.seats.findIndex((s) => s === null);
         if (free >= 0) this.seats[free] = this.newSeat(name, tok, client.sessionId, false, user);
@@ -319,7 +314,7 @@ export class LammaRoom extends Room {
         // running / finished game: only a computer seat can be taken (at the end of the current trick)
         const bots = this.seats.filter((s) => s?.bot).length;
         if (this.pending.length >= bots) throw new ServerError(403, 'gameFull');
-        this.members.set(client.sessionId, { name, token: newToken(), uid: user?.id ?? null });
+        this.members.set(client.sessionId, { name, token: newToken(), uid: user.id });
         this.pending.push(client.sessionId);
       }
     }
@@ -367,7 +362,7 @@ export class LammaRoom extends Room {
       auto: bot,
       timeouts: 0,
       bot,
-      level: user ? levelOf(user.xp) : GUEST_LEVEL,
+      level: user ? levelOf(user.xp) : BOT_LEVEL,
       lastChatAt: 0,
       uid: user?.id ?? null,
       vip: user ? isVip(user) : false,

@@ -10,7 +10,7 @@ import * as C from './competitions.ts';
 import { GIFTS } from './gifts.ts';
 import { paymentsStatus, verifyPurchase } from './payments.ts';
 import { pushReady } from './push.ts';
-import { appleReady, googleReady, phoneReady, sendPhoneCode, signInWithApple, signInWithGoogle, verifyPhoneCode } from './auth-providers.ts';
+import { appleReady, googleReady, revokeAppleSignIn, signInWithApple, signInWithGoogle } from './auth-providers.ts';
 import { db } from './data/db.ts';
 import { ApiError, fail } from './util.ts';
 import { adminRouter } from './admin.ts';
@@ -38,14 +38,14 @@ const route =
 const me = (req: Request) => A.requireUser(tokenOf(req));
 const maybeMe = (req: Request) => A.userByToken(tokenOf(req));
 
-/** A few sign-ups per address per hour (a guest account is one tap). */
-const SIGNUPS_PER_HOUR = Number(process.env.LAMMA_SIGNUPS_PER_HOUR) || 20;
+/** A few sign-in attempts per address per hour (each one asks Google or Apple, and a first one makes an account). */
+const AUTH_PER_HOUR = Number(process.env.LAMMA_AUTH_PER_HOUR) || 60;
 const signups = new Map<string, number[]>();
-function limitSignups(req: Request) {
+function limitAuth(req: Request) {
   const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || req.socket.remoteAddress || '?';
   const now = Date.now();
   const recent = (signups.get(ip) ?? []).filter((t) => now - t < 3600000);
-  if (recent.length >= SIGNUPS_PER_HOUR) fail('tooMany', 429);
+  if (recent.length >= AUTH_PER_HOUR) fail('tooMany', 429);
   recent.push(now);
   signups.set(ip, recent);
 }
@@ -68,27 +68,12 @@ export function apiRouter(): Router {
       payments: (({ android, ios, test }) => ({ android, ios, test }))(paymentsStatus()),
       products: paymentsStatus().products,
       push: pushReady(),
-      auth: { phone: phoneReady(), google: googleReady(), apple: appleReady() },
+      auth: { google: googleReady(), apple: appleReady() },
       reportReasons: S.REPORT_REASONS,
     })),
   );
 
   // ── signing in ────────────────────────────────────────────────────────────
-  r.post(
-    '/auth/guest',
-    route((req) => {
-      limitSignups(req);
-      const { user, token } = A.createGuest(req.body?.name, req.body?.country);
-      return { token, me: A.meView(user) };
-    }),
-  );
-  r.post(
-    '/auth/login',
-    route((req) => {
-      const { user, token } = A.loginWithEmail(req.body?.email, req.body?.password);
-      return { token, me: A.meView(user) };
-    }),
-  );
   r.post(
     '/auth/logout',
     route((req) => {
@@ -96,17 +81,10 @@ export function apiRouter(): Router {
       if (t) A.signOut(t);
     }),
   );
-  r.post('/auth/phone/send', route((req) => sendPhoneCode(req.body?.phone)));
-  r.post(
-    '/auth/phone/verify',
-    route(async (req) => {
-      const out = await verifyPhoneCode(maybeMe(req), req.body?.phone, req.body?.code, req.body?.name);
-      return { token: out.token, linked: out.linked, me: A.meView(out.user) };
-    }),
-  );
   r.post(
     '/auth/google',
     route(async (req) => {
+      limitAuth(req);
       const out = await signInWithGoogle(maybeMe(req), req.body?.idToken, req.body?.name);
       return { token: out.token, linked: out.linked, me: A.meView(out.user) };
     }),
@@ -115,7 +93,8 @@ export function apiRouter(): Router {
   r.post(
     '/auth/apple',
     route(async (req) => {
-      const out = await signInWithApple(maybeMe(req), req.body?.idToken, req.body?.name);
+      limitAuth(req);
+      const out = await signInWithApple(maybeMe(req), req.body?.idToken, req.body?.name, req.body?.authorizationCode);
       return { token: out.token, linked: out.linked, me: A.meView(out.user) };
     }),
   );
@@ -134,14 +113,6 @@ export function apiRouter(): Router {
     }),
   );
   r.post(
-    '/me/email',
-    route((req) => {
-      const u = me(req);
-      A.setEmailPassword(u, req.body?.email, req.body?.password, req.body?.current);
-      return A.meView(u);
-    }),
-  );
-  r.post(
     '/me/signout-others',
     route((req) => {
       const u = me(req);
@@ -151,10 +122,12 @@ export function apiRouter(): Router {
   );
   r.delete(
     '/me',
-    route((req) => {
+    route(async (req) => {
       const u = me(req);
       if (u.clubId) K.leaveClub(u);
+      const appleToken = u.appleRefreshToken;
       A.deleteAccount(u);
+      await revokeAppleSignIn(appleToken);
     }),
   );
   r.post('/me/push', route((req) => A.addPushToken(me(req), req.body?.token)));

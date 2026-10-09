@@ -1,53 +1,19 @@
-// Signing in with a phone number (an SMS code through Twilio Verify), with Google (an ID token from the app's
-// Google sign-in) or with Apple (an identity token from Sign in with Apple). All link to the current account when the player is signed in, or sign in to the account
-// they were linked to before (on a new phone).
+// Signing in with Google (an ID token from the app's Google sign-in) or with Apple (an identity token from Sign in
+// with Apple): the only two ways in. A new player's account is made on the first successful sign-in. Signed in already,
+// either one is linked to the current account instead; signed out, it signs in to the account it was linked to.
 //
 // Ready once the environment holds the keys:
-//   Phone:  TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SID
 //   Google: GOOGLE_CLIENT_IDS (the app's OAuth client ids, comma separated)
-//   Apple:  needs no secret; the token's audience must be APPLE_BUNDLE_ID (default com.samrah.app)
-import { createPublicKey, verify } from 'node:crypto';
+//   Apple:  signing in needs no secret; the token's audience must be APPLE_BUNDLE_ID (default com.samrah.app).
+//           To revoke the Apple sign-in when an account is deleted (App Store rule), also APPLE_TEAM_ID,
+//           APPLE_KEY_ID and APPLE_PRIVATE_KEY (the .p8 key: PEM text, with \n for the line breaks, or base64 of it).
+import { createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
 import { db } from './data/db.ts';
-import { type User, createGuest, newSession } from './accounts.ts';
-import { cleanPhone, fail } from './util.ts';
+import { type User, createAccount, newSession } from './accounts.ts';
+import { fail } from './util.ts';
 
-export const phoneReady = () => !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SID);
 export const googleReady = () => !!process.env.GOOGLE_CLIENT_IDS;
 export const appleReady = () => true;
-
-async function twilio(path: string, form: Record<string, string>) {
-  const sid = process.env.TWILIO_ACCOUNT_SID!;
-  const res = await fetch(`https://verify.twilio.com/v2/Services/${process.env.TWILIO_VERIFY_SID}/${path}`, {
-    method: 'POST',
-    headers: {
-      authorization: `Basic ${Buffer.from(`${sid}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64')}`,
-      'content-type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams(form),
-  });
-  return { ok: res.ok, status: res.status, body: (await res.json().catch(() => ({}))) as { status?: string } };
-}
-
-const lastCode = new Map<string, number>();
-
-export async function sendPhoneCode(phoneArg: unknown) {
-  if (!phoneReady()) fail('phoneOff', 503);
-  const phone = cleanPhone(phoneArg) ?? fail('badPhone');
-  if (Date.now() - (lastCode.get(phone) ?? 0) < 60000) fail('tooFast', 429);
-  lastCode.set(phone, Date.now());
-  const r = await twilio('Verifications', { To: phone, Channel: 'sms' });
-  if (!r.ok) fail('smsFailed', 502);
-}
-
-/** Checks the code; links the phone to [current], or signs in to the account it belongs to (a new one if none). */
-export async function verifyPhoneCode(current: User | null, phoneArg: unknown, code: unknown, name: unknown) {
-  if (!phoneReady()) fail('phoneOff', 503);
-  const phone = cleanPhone(phoneArg) ?? fail('badPhone');
-  if (typeof code !== 'string' || !/^\d{4,10}$/.test(code)) fail('badCode');
-  const r = await twilio('VerificationCheck', { To: phone, Code: code as string });
-  if (!r.ok || r.body.status !== 'approved') fail('badCode', 401);
-  return attach(current, 'phone', phone, name);
-}
 
 interface GoogleToken {
   aud: string;
@@ -112,21 +78,86 @@ export async function checkAppleToken(idToken: string): Promise<{ sub: string; n
   return { sub: t!.sub! };
 }
 
-export async function signInWithApple(current: User | null, idToken: unknown, name: unknown) {
+export async function signInWithApple(current: User | null, idToken: unknown, name: unknown, authorizationCode?: unknown) {
   if (typeof idToken !== 'string' || idToken.length > 4096) fail('badToken');
   const t = await checkAppleToken(idToken as string);
-  return attach(current, 'apple', t.sub, name);
+  const out = attach(current, 'apple', t.sub, name);
+  // Apple's code is traded for the refresh token that deleting the account must revoke; sign-in works without it
+  if (typeof authorizationCode === 'string' && authorizationCode.length < 2000 && appleRevokable()) {
+    const refresh = await appleRefreshToken(authorizationCode);
+    if (refresh) {
+      out.user.appleRefreshToken = refresh;
+      db.touch();
+    }
+  }
+  return out;
 }
 
-function attach(current: User | null, kind: 'phone' | 'google' | 'apple', key: string, name: unknown): { user: User; token: string | null; linked: boolean } {
-  const index = kind === 'phone' ? db.data.phones : kind === 'google' ? db.data.google : db.data.apple;
+// ── revoking the Apple sign-in (when the account is deleted) ─────────────────
+
+const appleRevokable = () => !!(process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY);
+const appleClientId = () => process.env.APPLE_BUNDLE_ID || 'com.samrah.app';
+
+/** The .p8 key from the environment: PEM text (\n allowed for line breaks) or base64 of it. */
+function applePem(): string {
+  const raw = process.env.APPLE_PRIVATE_KEY!.trim().replace(/\\n/g, '\n');
+  return raw.includes('BEGIN') ? raw : Buffer.from(raw, 'base64').toString('utf8');
+}
+
+/** Apple's "client secret": a short ES256 token signed with our key. */
+function appleClientSecret(): string {
+  const enc = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const now = Math.floor(Date.now() / 1000);
+  const unsigned = `${enc({ alg: 'ES256', kid: process.env.APPLE_KEY_ID, typ: 'JWT' })}.${enc({
+    iss: process.env.APPLE_TEAM_ID,
+    iat: now,
+    exp: now + 300,
+    aud: 'https://appleid.apple.com',
+    sub: appleClientId(),
+  })}`;
+  const sig = sign('sha256', Buffer.from(unsigned), { key: createPrivateKey(applePem()), dsaEncoding: 'ieee-p1363' });
+  return `${unsigned}.${sig.toString('base64url')}`;
+}
+
+async function appleRefreshToken(code: string): Promise<string | null> {
+  try {
+    const res = await fetch('https://appleid.apple.com/auth/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: appleClientId(), client_secret: appleClientSecret(), code, grant_type: 'authorization_code' }),
+    });
+    if (!res.ok) {
+      console.error('[apple] token exchange failed', res.status);
+      return null;
+    }
+    return ((await res.json()) as { refresh_token?: string }).refresh_token ?? null;
+  } catch (e) {
+    console.error('[apple] token exchange failed', e);
+    return null;
+  }
+}
+
+/** Tells Apple the player has left (account deletion). Best effort: the deletion itself never waits on it or fails by it. */
+export async function revokeAppleSignIn(refreshToken: string | null) {
+  if (!refreshToken || !appleRevokable()) return;
+  try {
+    const res = await fetch('https://appleid.apple.com/auth/revoke', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: appleClientId(), client_secret: appleClientSecret(), token: refreshToken, token_type_hint: 'refresh_token' }),
+    });
+    if (!res.ok) console.error('[apple] revoke failed', res.status);
+  } catch (e) {
+    console.error('[apple] revoke failed', e);
+  }
+}
+
+function attach(current: User | null, kind: 'google' | 'apple', key: string, name: unknown): { user: User; token: string | null; linked: boolean } {
+  const index = kind === 'google' ? db.data.google : db.data.apple;
   const ownerId = index[key];
   if (current) {
-    if (ownerId && ownerId !== current.id) fail(kind === 'phone' ? 'phoneTaken' : kind === 'google' ? 'googleTaken' : 'appleTaken', 409);
-    if (kind === 'phone') {
-      if (current.phone) delete db.data.phones[current.phone];
-      current.phone = key;
-    } else if (kind === 'apple') {
+    if (ownerId && ownerId !== current.id) fail(kind === 'google' ? 'googleTaken' : 'appleTaken', 409);
+    if (kind === 'apple') {
       if (current.appleId) delete db.data.apple[current.appleId];
       current.appleId = key;
     } else {
@@ -142,12 +173,7 @@ function attach(current: User | null, kind: 'phone' | 'google' | 'apple', key: s
     if (owner.banned) fail('banned', 403);
     return { user: owner, token: newSession(owner), linked: false };
   }
-  // a first sign-in with a phone or Google account that was never linked: a new account
-  const { user, token } = createGuest(typeof name === 'string' && name.trim().length >= 2 ? name : 'لاعب');
-  if (kind === 'phone') user.phone = key;
-  else if (kind === 'apple') user.appleId = key;
-  else user.googleId = key;
-  index[key] = user.id;
-  db.touch();
+  // the first sign-in with this Google / Apple account: the player's account is made now
+  const { user, token } = createAccount(name, kind, key);
   return { user, token, linked: false };
 }

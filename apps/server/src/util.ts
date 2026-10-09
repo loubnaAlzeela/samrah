@@ -1,5 +1,5 @@
 // Small helpers shared by the account, club and competition modules.
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 /** A refusal the API sends back as `{error: code}` with an HTTP status; the app turns the code into Arabic. */
 export class ApiError extends Error {
@@ -37,29 +37,8 @@ export function cleanText(x: unknown, max: number): string | null {
   return t.slice(0, max);
 }
 
-export function hashPassword(pw: string): string {
-  const salt = randomBytes(16);
-  const hash = scryptSync(pw, salt, 32);
-  return `scrypt$${salt.toString('base64url')}$${hash.toString('base64url')}`;
-}
-
-export function checkPassword(pw: string, stored: string | null): boolean {
-  if (!stored) return false;
-  const [kind, salt, hash] = stored.split('$');
-  if (kind !== 'scrypt' || !salt || !hash) return false;
-  const want = Buffer.from(hash, 'base64url');
-  const got = scryptSync(pw, Buffer.from(salt, 'base64url'), want.length);
-  return timingSafeEqual(want, got);
-}
-
-export const isEmail = (x: unknown): x is string => typeof x === 'string' && x.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x);
-
-/** A phone number in international form, e.g. +9665…; spaces and dashes are dropped. */
-export function cleanPhone(x: unknown): string | null {
-  if (typeof x !== 'string') return null;
-  const p = x.replace(/[\s-]/g, '').replace(/^00/, '+');
-  return /^\+[1-9]\d{7,14}$/.test(p) ? p : null;
-}
+/** A one-way fingerprint of a Google / Apple account id: what is kept after the account is deleted. */
+export const providerHash = (kind: 'google' | 'apple', id: string) => createHash('sha256').update(`samrah:${kind}:${id}`).digest('hex');
 
 /** Fisher–Yates with crypto-strength randomness is not needed here; Math.random is fine for seating. */
 export function shuffle<T>(a: T[]): T[] {

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from '@colyseus/sdk';
-import { TestPlayer, sleep, waitFor } from './helpers.ts';
+import { TestPlayer, sleep, testAccount, waitFor } from './helpers.ts';
 
 // short test timings (must be set before the room module is loaded)
 process.env.LAMMA_TURN_SECONDS = '0.25';
@@ -47,13 +47,22 @@ describe('room creation + settings', () => {
     await b.join(code);
     expect(b.view!.isOwner).toBe(false);
     expect(b.view!.mySeat).toBe(1);
-    expect(b.view!.seats[1]).toMatchObject({ name: 'ب', bot: false, level: 1, uid: null });
+    expect(b.view!.seats[1]).toMatchObject({ name: 'ب', bot: false, level: 1 });
+  });
+
+  it('refuses a player without an account (no guest play)', async () => {
+    await expect(new Client(EP).create('lamma', { variant: 'tarneeb', name: 'ضيف' })).rejects.toThrow(/signedOut/);
+    await expect(new Client(EP).create('lamma', { variant: 'tarneeb', auth: 'not-a-real-session-token' })).rejects.toThrow(/signedOut/);
+    const host = P('مضيف2');
+    const code = await host.create('tarneeb');
+    await expect(new Client(EP).joinById(code, { name: 'ضيف' })).rejects.toThrow(/signedOut/);
   });
 
   it('rejects invalid settings at creation', async () => {
-    await expect(new Client(EP).create('lamma', { variant: 'tarneeb', settings: { speed: 'warp' }, name: 'x' })).rejects.toThrow();
-    await expect(new Client(EP).create('lamma', { variant: 'tarneeb', settings: { minLevel: 0 }, name: 'x' })).rejects.toThrow();
-    await expect(new Client(EP).create('lamma', { variant: 'tarneeb', settings: { evil: 1 }, name: 'x' })).rejects.toThrow();
+    const auth = (await testAccount('x')).token;
+    await expect(new Client(EP).create('lamma', { variant: 'tarneeb', settings: { speed: 'warp' }, auth })).rejects.toThrow();
+    await expect(new Client(EP).create('lamma', { variant: 'tarneeb', settings: { minLevel: 0 }, auth })).rejects.toThrow();
+    await expect(new Client(EP).create('lamma', { variant: 'tarneeb', settings: { evil: 1 }, auth })).rejects.toThrow();
   });
 
   it('only the host changes settings, only before the start', async () => {
@@ -125,7 +134,7 @@ describe('a human takes a computer seat', () => {
     await b.join(code);
     await waitFor(() => a.view!.mySeat !== null && b.view!.mySeat !== null, 'both seated', 10000);
     expect(host.view!.seats.every((s) => s && !s.bot)).toBe(true);
-    await expect(new Client(EP).joinById(code, { name: 'زائد' })).rejects.toThrow(/gameFull/);
+    await expect(new Client(EP).joinById(code, { auth: (await testAccount('زائد')).token })).rejects.toThrow(/gameFull/);
   });
 });
 
@@ -150,7 +159,7 @@ describe('kick', () => {
     host.send('kick', { seat: 1 });
     await waitFor(() => victim.leftCode === 4003, 'victim removed');
     await waitFor(() => host.view!.seats[1] === null, 'seat freed');
-    await expect(new Client(EP).joinById(code, { name: 'ضيف', token: tok })).rejects.toThrow(/kicked/);
+    await expect(new Client(EP).joinById(code, { auth: (await testAccount('ضيف')).token, token: tok })).rejects.toThrow(/kicked/);
   });
 
   it('during a game: queued, applied when the hand ends; the seat goes to a computer', { timeout: 30_000 }, async () => {
@@ -424,7 +433,7 @@ describe('187', () => {
 describe('quick match ("العب الآن")', () => {
   it('an empty table: create({ quick: true }) opens a public table that auto-fills with computers after the fill window', async () => {
     const p = P('q1');
-    const room = await new Client(EP).create('lamma', { variant: 'tarneeb', name: 'q1', quick: true });
+    const room = await new Client(EP).create('lamma', { variant: 'tarneeb', auth: await p.auth(), quick: true });
     (p as any).attachForTest(room);
     await waitFor(() => !!p.view, 'first view');
     expect(p.view!.settings.visibility).toBe('public');

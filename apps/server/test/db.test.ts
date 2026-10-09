@@ -14,12 +14,12 @@ describe.skipIf(!url)('PostgreSQL storage', () => {
   it('imports the old file once, saves changes, and loads them back', async () => {
     await pool.query('DROP TABLE IF EXISTS samrah_state');
     const dir = mkdtempSync(join(tmpdir(), 'samrah-'));
-    writeFileSync(join(dir, 'samrah.json'), JSON.stringify({ version: 1, nextUserNo: 100777, emails: { 'a@b.c': 'u1' } }));
+    writeFileSync(join(dir, 'samrah.json'), JSON.stringify({ version: 1, nextUserNo: 100777, google: { g1: 'u1' } }));
     const { db } = await import('../src/data/db.ts');
 
     await db.open(dir, url);
     expect(db.data.nextUserNo).toBe(100777);
-    expect(db.data.emails['a@b.c']).toBe('u1');
+    expect(db.data.google.g1).toBe('u1');
     expect(db.data.apple).toEqual({});
     db.data.nextUserNo = 100900;
     db.touch();

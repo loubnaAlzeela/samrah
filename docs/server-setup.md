@@ -22,9 +22,14 @@
 | `GOOGLE_PLAY_PACKAGE` | اسم الحزمة (الافتراضي `com.samrah.app`) | لا |
 | `FIREBASE_PROJECT_ID` | مشروع Firebase إن كان غير مشروع حساب الخدمة | لا |
 | `APPLE_IAP_ISSUER_ID`، `APPLE_IAP_KEY_ID`، `APPLE_IAP_PRIVATE_KEY`، `APPLE_BUNDLE_ID` | التحقق من مشتريات App Store | للدفع على iOS |
-| `TWILIO_ACCOUNT_SID`، `TWILIO_AUTH_TOKEN`، `TWILIO_VERIFY_SID` | رمز SMS للدخول برقم الهاتف | للدخول بالهاتف |
-| `GOOGLE_CLIENT_IDS` | معرّفات OAuth للتطبيق (مفصولة بفواصل) | للدخول بحساب Google |
+| `GOOGLE_CLIENT_IDS` | معرّفات OAuth للتطبيق (مفصولة بفواصل): Web وiOS وAndroid | نعم: الدخول بحساب Google |
+| `APPLE_TEAM_ID`، `APPLE_KEY_ID`، `APPLE_PRIVATE_KEY` | مفتاح Sign in with Apple (ملف ‎.p8: نص PEM وفيه `\n` بدل أسطره، أو base64 له). لإلغاء دخول Apple عند حذف الحساب (شرط App Store) | لا، لكن مطلوب لنشر iOS |
+| `LAMMA_AUTH_PER_HOUR` | محاولات الدخول بالساعة لكل عنوان IP (الافتراضي 60) | لا |
 | `IAP_TEST_MODE=1` | قبول مشتريات وهمية على خادم التطوير فقط | لا، ولا يعمل مع `NODE_ENV=production` |
+
+## الدخول
+
+الدخول بحساب **Google** أو **Apple** فقط: لا ضيف ولا بريد ولا هاتف. الحساب يُنشأ عند أول دخول ناجح، ورصيد الترحيب يُمنح مرة واحدة لكل حساب Google / Apple (يُحفظ بعد حذف الحساب بصمة sha-256 للمعرّف فقط، حتى لا يتكرر). غرف اللعب ترفض من لا يحمل جلسة حساب.
 
 ## التطبيق (`--dart-define`)
 
@@ -32,7 +37,7 @@
 |---|---|
 | `GAME_SERVER` | عنوان الخادم (الافتراضي خادم Railway) |
 | `FIREBASE_API_KEY`، `FIREBASE_APP_ID`، `FIREBASE_SENDER_ID`، `FIREBASE_PROJECT_ID` | الإشعارات على الهاتف |
-| `GOOGLE_SERVER_CLIENT_ID` | زر الدخول بحساب Google (يظهر فقط عند وجوده) |
+| `GOOGLE_SERVER_CLIENT_ID` | معرّف عميل Web لدخول Google (له قيمة افتراضية في الكود) |
 
 ## ما يلزم في المتاجر
 

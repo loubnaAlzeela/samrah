@@ -46,14 +46,12 @@ export interface DbShape {
   users: Record<string, User>;
   /** session token -> user id */
   sessions: Record<string, { userId: string; createdAt: number }>;
-  /** lower-cased email -> user id */
-  emails: Record<string, string>;
-  /** phone (E.164) -> user id */
-  phones: Record<string, string>;
   /** Google account id -> user id */
   google: Record<string, string>;
   /** Apple account id (the token's `sub`) -> user id */
   apple: Record<string, string>;
+  /** sha-256 of a Google / Apple account id whose account was deleted -> when (the welcome gift is not given twice) */
+  deletedProviders: Record<string, number>;
   ledger: LedgerEntry[];
   purchases: Record<string, Purchase>;
   messages: DirectMessage[];
@@ -71,10 +69,9 @@ function empty(): DbShape {
     nextId: 1,
     users: {},
     sessions: {},
-    emails: {},
-    phones: {},
     google: {},
     apple: {},
+    deletedProviders: {},
     ledger: [],
     purchases: {},
     messages: [],
@@ -209,8 +206,18 @@ class Db {
 }
 
 /** A stored document on top of the empty one, so collections added later exist in old data. */
-function merge(stored: Partial<DbShape>): DbShape {
-  return { ...empty(), ...stored };
+function merge(stored: Partial<DbShape> & Record<string, unknown>): DbShape {
+  const data = { ...empty(), ...stored } as DbShape & Record<string, unknown>;
+  // email and phone sign-in were removed: their indexes and the fields on the accounts are dropped
+  delete data.emails;
+  delete data.phones;
+  for (const u of Object.values(data.users) as unknown as Record<string, unknown>[]) {
+    delete u.email;
+    delete u.passwordHash;
+    delete u.phone;
+    u.appleRefreshToken ??= null;
+  }
+  return data;
 }
 
 export const db = new Db();
