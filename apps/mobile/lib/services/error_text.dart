@@ -64,6 +64,7 @@ const _errors = {
   'badProduct': 'منتج غير معروف',
   'badPlatform': 'متجر غير معروف',
   'purchaseUsed': 'استُخدم هذا الشراء من قبل',
+  'purchaseAccountMismatch': 'عملية الشراء هذه لحساب آخر',
   'paymentsOff': 'الدفع غير متاح حالياً، حاول لاحقاً',
   'badPurchase': 'لم يتم التحقق من عملية الشراء',
   'purchasePending': 'عملية الشراء قيد المعالجة، ستصلك عند اكتمالها',

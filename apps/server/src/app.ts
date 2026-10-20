@@ -2,6 +2,7 @@ import { LobbyRoom, Server, matchMaker } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { LammaRoom } from './LammaRoom.ts';
 import { apiRouter } from './api.ts';
+import { iapWebhooksRouter } from './iap-webhooks.ts';
 import { ADMIN_PAGE } from './admin.ts';
 import { LEGAL_PAGES } from './legal.ts';
 import { db } from './data/db.ts';
@@ -16,6 +17,7 @@ export async function startGameServer(port: number, opts: { dataDir?: string; da
     gracefullyShutdown: false,
     express: (app) => {
       app.use('/api', apiRouter());
+      app.use('/iap', iapWebhooksRouter());
       app.get('/admin', (_req, res) => {
         res.type('html').send(ADMIN_PAGE);
       });

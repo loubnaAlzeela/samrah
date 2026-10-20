@@ -36,6 +36,8 @@ export interface Purchase {
   currency: 'units' | 'stars';
   amount: number;
   at: number;
+  /** set once the store told us (refund/revoke) this purchase was taken back; the wallet is debited to match */
+  revokedAt?: number;
 }
 
 export interface DbShape {

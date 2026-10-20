@@ -26,6 +26,16 @@
 | `APPLE_TEAM_ID`، `APPLE_KEY_ID`، `APPLE_PRIVATE_KEY` | مفتاح Sign in with Apple (ملف ‎.p8: نص PEM وفيه `\n` بدل أسطره، أو base64 له). لإلغاء دخول Apple عند حذف الحساب (شرط App Store) | لا، لكن مطلوب لنشر iOS |
 | `LAMMA_AUTH_PER_HOUR` | محاولات الدخول بالساعة لكل عنوان IP (الافتراضي 60) | لا |
 | `IAP_TEST_MODE=1` | قبول مشتريات وهمية على خادم التطوير فقط | لا، ولا يعمل مع `NODE_ENV=production` |
+| `GOOGLE_RTDN_AUDIENCE` | رابط هذا الخادم نفسه (`https://.../iap/google`): يتحقق به من توكن Google في إشعارات الاسترجاع | لا، لكن بدونه تُرفض إشعارات استرجاع جوجل (503) |
+
+## المشتريات: الربط بالحساب والاسترجاع
+
+كل عملية شراء تُربط بالحساب الذي اشترى (`appAccountToken` من أبل، `obfuscatedAccountId` من جوجل، كلاهما من `iapAccountToken(u.id)` — انظر `apps/server/src/iap-account-token.ts`)، حتى لا يقدر حساب آخر يستخدم معرّف عملية شراء تسرّب (من السجلات، أو وسيط شبكي، أو جهاز مخترق) ليحصل هو على الرصيد. تطبيق قديم لم يُحدَّث بعد لا يرسل هذا الربط، فيُقبل بلا مقارنة؛ لكن ربطاً موجوداً وخاطئاً يُرفض دائماً.
+
+عند استرجاع المتجر لعملية شراء (refund/revoke) **بعد** أن أُضيف رصيدها، يصل ذلك عبر إشعار من المتجر نفسه (`apps/server/src/iap-webhooks.ts`)، لا عبر التطبيق. يحتاج كل متجر إعداداً يدوياً لمرة واحدة (لا كود):
+
+- **أبل:** App Store Connect ← التطبيق ← App Information ← App Store Server Notifications (Version 2) ← اضبطي رابطَي الإنتاج والـ sandbox على `https://<الخادم>/iap/apple`.
+- **جوجل:** Play Console ← Monetization setup ← أنشئي موضوع Pub/Sub للإشعارات اللحظية (RTDN) ← من Google Cloud Console أضيفي اشتراك push على هذا الموضوع: الرابط `https://<الخادم>/iap/google`، فعّلي "Enable authentication"، واجعلي الجمهور (audience) نفس الرابط. ثم اضبطي `GOOGLE_RTDN_AUDIENCE` هنا على الرابط نفسه.
 
 ## الدخول
 
