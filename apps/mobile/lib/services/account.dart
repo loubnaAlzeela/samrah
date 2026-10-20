@@ -70,7 +70,7 @@ class Account extends ChangeNotifier {
 
   /// Restores the saved session (no network needed).
   void restore() {
-    Api.instance.token = Prefs.getString(Prefs.token);
+    Api.instance.token = Prefs.getToken();
     final saved = Prefs.getJson(Prefs.me);
     if (Api.instance.token != null && saved != null) me = Me(saved);
     Api.instance.onSignedOut = _signedOutByServer;
@@ -91,7 +91,7 @@ class Account extends ChangeNotifier {
 
   void _setSession(String token, Object? meJson) {
     Api.instance.token = token;
-    Prefs.setString(Prefs.token, token);
+    unawaited(Prefs.setToken(token));
     apply(meJson);
     start();
   }
@@ -103,7 +103,7 @@ class Account extends ChangeNotifier {
     me = null;
     unreadMessages = 0;
     unreadNotifications = 0;
-    Prefs.setString(Prefs.token, null);
+    unawaited(Prefs.setToken(null));
     Prefs.setString(Prefs.me, null);
     notifyListeners();
   }
