@@ -84,8 +84,11 @@ class Purchases extends ChangeNotifier {
     busy = pack.id;
     notifyListeners();
     try {
+      // applicationUserName binds the purchase to this account (Apple's appAccountToken, Google's
+      // obfuscatedAccountId) so the server can refuse to credit it to a different one — see account.dart.
+      final purchaseParam = PurchaseParam(productDetails: product, applicationUserName: Account.instance.me?.iapAccountToken);
       // the server consumes the purchase after crediting it (Android), so the app does not consume it itself
-      await InAppPurchase.instance.buyConsumable(purchaseParam: PurchaseParam(productDetails: product), autoConsume: false);
+      await InAppPurchase.instance.buyConsumable(purchaseParam: purchaseParam, autoConsume: false);
     } catch (_) {
       busy = null;
       _say('تعذّر بدء عملية الشراء');
@@ -124,7 +127,7 @@ class Purchases extends ChangeNotifier {
       await _complete(p);
     } on ApiError catch (e) {
       // a refusal that will not change: finish it so it does not come back for ever
-      if (e.code == 'badPurchase' || e.code == 'purchaseUsed' || e.code == 'badProduct') {
+      if (e.code == 'badPurchase' || e.code == 'purchaseUsed' || e.code == 'badProduct' || e.code == 'purchaseAccountMismatch') {
         await _complete(p);
       }
       _say(errorText(e.code));

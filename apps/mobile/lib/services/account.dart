@@ -15,6 +15,10 @@ class Me {
 
   String get id => raw['id'] as String;
   int get no => (raw['no'] as num).toInt();
+  /// Passed to the store as `applicationUserName` when buying (Apple's `appAccountToken`, Google's
+  /// `obfuscatedAccountId`): binds the purchase to this account, so the server can tell a purchase that was
+  /// actually paid for by someone else apart from one it should credit here. See purchases.dart.
+  String? get iapAccountToken => raw['iapAccountToken'] as String?;
   String get name => raw['name'] as String? ?? 'لاعب';
   String? get country => raw['country'] as String?;
   bool get google => raw['google'] == true;

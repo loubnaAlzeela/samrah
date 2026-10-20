@@ -6,6 +6,7 @@ import { db } from './data/db.ts';
 import { ApiError, cleanText, dayKey, fail, newSecret, providerHash, weekKey } from './util.ts';
 import { notify } from './social.ts';
 import { addClubPoints } from './clubs.ts';
+import { iapAccountToken } from './iap-account-token.ts';
 
 // ── the economy (one place to tune) ──────────────────────────────────────────
 
@@ -694,6 +695,9 @@ export function meView(u: User) {
     compBanned: u.compBanned,
     sessions: sessionCount(u),
     createdAt: u.createdAt,
+    // Passed back to the store (Apple's appAccountToken, Google's obfuscatedAccountId) when buying, so the server
+    // can confirm a purchase was made for *this* account — see iap-account-token.ts.
+    iapAccountToken: iapAccountToken(u.id),
   };
 }
 
